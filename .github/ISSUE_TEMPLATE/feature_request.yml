@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest a harness, signal, evaluation case, or workflow improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user workflow or failure mode should this improve?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Core prosody analysis
+        - Calibration
+        - Prompt rendering
+        - CLI / HTTP / MCP
+        - Codex adapter
+        - Claude Code adapter
+        - VS Code / IDE adapter
+        - Native desktop / hotkey
+        - Realtime audio steering
+        - Wild-data evaluation
+        - Documentation / licensing
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the behavior, API, harness, or benchmark you want.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence Or Examples
+      description: Link examples, datasets, transcripts, or expected vocalcontext/v1 output.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: This does not require Subtext to classify psychological emotion or make high-stakes decisions about people.
+          required: true

@@ -1,0 +1,61 @@
+{
+  "name": "subtext-vscode-adapter",
+  "displayName": "Subtext Voice Context",
+  "description": "Insert model-free vocal-context prompts into VS Code and IDE chat workflows.",
+  "version": "0.1.0",
+  "publisher": "subtext",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:subtext.copyEnrichedPrompt",
+    "onCommand:subtext.insertEnrichedPrompt",
+    "onCommand:subtext.previewEnrichedPrompt"
+  ],
+  "main": "./extension.cjs",
+  "contributes": {
+    "commands": [
+      {
+        "command": "subtext.copyEnrichedPrompt",
+        "title": "Subtext: Copy Enriched Prompt"
+      },
+      {
+        "command": "subtext.insertEnrichedPrompt",
+        "title": "Subtext: Insert Enriched Prompt"
+      },
+      {
+        "command": "subtext.previewEnrichedPrompt",
+        "title": "Subtext: Preview Enriched Prompt"
+      }
+    ],
+    "configuration": {
+      "title": "Subtext",
+      "properties": {
+        "subtext.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to bin/subtext.js. Leave empty when running this adapter from the Yell-at-AI repository."
+        },
+        "subtext.baselinePath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to a Subtext personal baseline JSON file."
+        },
+        "subtext.defaultVerbosity": {
+          "type": "string",
+          "default": "full",
+          "enum": [
+            "subtle",
+            "full",
+            "raw"
+          ],
+          "description": "Verbosity used when rendering the vocal-context prompt. Full preserves transcript provenance and alignment metadata."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subtext Preview</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="surface" aria-label="Subtext live preview">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Subtext</p>
+            <h1>Voice Context Preview</h1>
+          </div>
+          <output id="status" class="status">Ready</output>
+        </header>
+
+        <canvas id="meter" class="meter" width="960" height="160" aria-label="Audio waveform"></canvas>
+
+        <div class="controls">
+          <button id="recordButton" class="primary" type="button">Record</button>
+          <button id="stopButton" type="button" disabled>Stop</button>
+          <button id="analyzeButton" type="button" disabled>Analyze</button>
+          <button id="calibrateButton" type="button" disabled>Calibrate</button>
+          <button id="dictateButton" type="button">Dictate Transcript</button>
+          <button id="stopDictationButton" type="button" disabled>Stop Dictation</button>
+          <button id="clearBaselineButton" type="button">Clear Baseline</button>
+          <select id="microphoneSelect" aria-label="Microphone">
+            <option value="">Default microphone</option>
+          </select>
+          <button id="refreshMicrophonesButton" type="button">Refresh Mics</button>
+          <input id="profileName" type="text" value="default" aria-label="Calibration profile name">
+          <button id="loadProfileButton" type="button">Load Profile</button>
+          <select id="verbosity" aria-label="Verbosity">
+            <option value="subtle">Subtle</option>
+            <option value="full">Full</option>
+            <option value="raw">Raw</option>
+          </select>
+        </div>
+        <output id="baselineStatus" class="baseline-status">Baseline: utterance only</output>
+        <output id="microphoneStatus" class="microphone-status">Microphone: default</output>
+        <output id="dictationStatus" class="dictation-status">Browser dictation: checking support</output>
+
+        <label class="field">
+          <span>Transcript</span>
+          <textarea id="transcript" rows="4">wait um i am not sure which auth flow broke?</textarea>
+        </label>
+
+        <div class="grid">
+          <label class="field">
+            <span>Prompt</span>
+            <textarea id="promptOutput" rows="12" readonly></textarea>
+          </label>
+          <label class="field">
+            <span>Contract</span>
+            <textarea id="jsonOutput" rows="12" readonly></textarea>
+          </label>
+        </div>
+        <label class="field baseline-field">
+          <span>Personal Baseline</span>
+          <textarea id="baselineOutput" rows="6" readonly></textarea>
+        </label>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

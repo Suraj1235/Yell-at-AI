@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use Subtext / Yell-at-AI in research, student work, or noncommercial projects, please cite it."
+title: "Subtext / Yell-at-AI"
+version: "0.1.0"
+date-released: "2026-06-27"
+type: software
+authors:
+  - family-names: "Kuncham"
+    given-names: "Suraj"
+    website: "https://github.com/Suraj1235"
+  - family-names: "Sampathirao"
+    given-names: "Manish"
+    website: "https://github.com/manishgit61332"
+abstract: "Model-free vocal context for coding assistants: helping AI understand what you mean and the emotion of your natural speech through pitch, energy, pacing, pauses, stress, and emphasis."
+license: "LicenseRef-Subtext-NonCommercial"
+keywords:
+  - prosody
+  - speech
+  - voice
+  - coding-assistant
+  - model-context-protocol
+  - dsp

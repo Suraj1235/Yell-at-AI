@@ -1,0 +1,87 @@
+{
+  "name": "@subtext/yell-at-ai",
+  "version": "0.1.0",
+  "description": "Help AI understand what you mean and the emotion of your natural speech, not just the plain text transcript.",
+  "type": "module",
+  "author": "Suraj Kuncham and Manish Sampathirao",
+  "contributors": [
+    {
+      "name": "Suraj Kuncham",
+      "url": "https://github.com/Suraj1235"
+    },
+    {
+      "name": "Manish Sampathirao",
+      "url": "https://github.com/manishgit61332"
+    }
+  ],
+  "bin": {
+    "subtext": "./bin/subtext.js"
+  },
+  "citation": "./CITATION.cff",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "adapters/",
+    "apps/",
+    "bench/",
+    "bin/",
+    "docs/",
+    "eval/fixtures/",
+    "eval/external/BASELINE.md",
+    "eval/external/README.md",
+    "eval/external/emotion-cases.json",
+    "eval/wild/BASELINE.md",
+    "eval/wild/README.md",
+    "eval/wild/youtube-cases.json",
+    "eval/llm-judge/README.md",
+    "eval/llm-judge/run.mjs",
+    "schemas/",
+    "scripts/",
+    "src/",
+    "test/",
+    "ui/",
+    "CITATION.cff",
+    "CODE_OF_CONDUCT.md",
+    "COMMERCIAL-LICENSE.md",
+    "CONTRIBUTING.md",
+    "CONTRIBUTOR-LICENSE-AGREEMENT.md",
+    "GOVERNANCE.md",
+    "NOTICE",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build-check.mjs",
+    "fixtures": "node scripts/generate-fixtures.mjs",
+    "test": "npm run fixtures && node --test",
+    "test:functional": "npm run fixtures && node --test test/functional.test.js",
+    "bench": "npm run fixtures && node bench/latency.mjs",
+    "smoke": "npm run fixtures && node scripts/smoke.mjs",
+    "readiness": "node scripts/release-readiness.mjs",
+    "desktop:check": "node scripts/validate-desktop-scaffold.mjs",
+    "harness:conformance": "npm run fixtures && node scripts/harness-conformance.mjs",
+    "eval:judge": "npm run fixtures && node eval/llm-judge/run.mjs --dry-run",
+    "eval:judge:mock": "npm run fixtures && node eval/llm-judge/run.mjs --provider mock",
+    "eval:judge:openai": "npm run fixtures && node eval/llm-judge/run.mjs --provider openai --allow-paid",
+    "package:adapters": "node scripts/package-adapters.mjs",
+    "install:adapter": "node bin/subtext.js install-adapter",
+    "profile:list": "node bin/subtext.js profile list",
+    "external:emotion": "node scripts/run-external-emotion-eval.mjs --min-pass-rate 0.55",
+    "external:emotion:download": "node scripts/run-external-emotion-eval.mjs --download-only",
+    "wild:youtube": "node scripts/run-wild-youtube-eval.mjs --min-pass-rate 0.55",
+    "wild:youtube:download": "node scripts/run-wild-youtube-eval.mjs --download-only",
+    "check": "npm run build && npm test && npm run bench && npm run smoke && npm run eval:judge"
+  },
+  "keywords": [
+    "prosody",
+    "voice",
+    "coding-assistant",
+    "mcp",
+    "speech",
+    "dsp"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=20"
+  }
+}

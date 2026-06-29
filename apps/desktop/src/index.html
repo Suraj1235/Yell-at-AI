@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subtext Desktop</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101114;
+        --surface: #181b20;
+        --line: #38404a;
+        --text: #f4f7fb;
+        --muted: #aab3c0;
+        --teal: #2dd4bf;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(760px, 100%);
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      section {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 20px;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: 28px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        margin: 14px 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      input,
+      button,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0d0f12;
+        color: var(--text);
+        font: inherit;
+        padding: 10px 12px;
+      }
+
+      button {
+        width: auto;
+        min-width: 150px;
+        cursor: pointer;
+        border-color: rgba(45, 212, 191, 0.7);
+        background: #12312e;
+      }
+
+      .row {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+      }
+
+      .row label {
+        flex: 1;
+      }
+
+      textarea {
+        min-height: 180px;
+        resize: vertical;
+      }
+
+      output {
+        display: block;
+        margin-top: 12px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>Subtext Desktop</h1>
+        <div class="row">
+          <label>
+            Config Path
+            <input id="configPath" value="apps/desktop/subtext-desktop.generated.json">
+          </label>
+          <button id="loadConfigButton" type="button">Load Config</button>
+        </div>
+        <label>
+          Node Command
+          <input id="nodeCommand" value="node">
+        </label>
+        <label>
+          Subtext CLI Path
+          <input id="cliPath" value="">
+        </label>
+        <label>
+          Transcript Command
+          <input id="transcriptCommand" value="host-transcript --json {audio}">
+        </label>
+        <label>
+          Duration Seconds
+          <input id="duration" value="4">
+        </label>
+        <label>
+          Target
+          <select id="target">
+            <option value="clipboard">Clipboard</option>
+            <option value="paste">Paste</option>
+            <option value="stdout">Stdout</option>
+          </select>
+        </label>
+        <label>
+          Verbosity
+          <select id="verbosity">
+            <option value="full">Full</option>
+            <option value="subtle">Subtle</option>
+            <option value="raw">Raw</option>
+          </select>
+        </label>
+        <label>
+          Hotkey
+          <input id="hotkey" value="Cmd+Alt+Ctrl+Y" disabled>
+        </label>
+        <button id="sessionButton" type="button">Record Bounded Turn</button>
+        <output id="status">Ready</output>
+        <label>
+          Last Output
+          <textarea id="output" readonly></textarea>
+        </label>
+      </section>
+    </main>
+    <script>
+      const loadConfigButton = document.querySelector("#loadConfigButton");
+      const sessionButton = document.querySelector("#sessionButton");
+      const status = document.querySelector("#status");
+      const output = document.querySelector("#output");
+      const configPath = document.querySelector("#configPath");
+      const nodeCommand = document.querySelector("#nodeCommand");
+      const cliPath = document.querySelector("#cliPath");
+      const transcriptCommand = document.querySelector("#transcriptCommand");
+      const duration = document.querySelector("#duration");
+      const target = document.querySelector("#target");
+      const verbosity = document.querySelector("#verbosity");
+      const hotkey = document.querySelector("#hotkey");
+
+      configPath.value = window.localStorage.getItem("subtextDesktopConfigPath") || configPath.value;
+      nodeCommand.value = window.localStorage.getItem("subtextDesktopNodeCommand") || nodeCommand.value;
+      cliPath.value = window.localStorage.getItem("subtextDesktopCliPath") || "";
+      transcriptCommand.value = window.localStorage.getItem("subtextDesktopTranscriptCommand") || transcriptCommand.value;
+      duration.value = window.localStorage.getItem("subtextDesktopDuration") || duration.value;
+      target.value = window.localStorage.getItem("subtextDesktopTarget") || target.value;
+      verbosity.value = window.localStorage.getItem("subtextDesktopVerbosity") || verbosity.value;
+
+      loadConfigButton.addEventListener("click", async () => {
+        status.value = "Loading";
+        output.value = "";
+        try {
+          const config = await invokeTauri("subtext_load_config", {
+            request: { path: configPath.value }
+          });
+          applyConfig(config);
+          saveSettings();
+          status.value = "Ready";
+          output.value = JSON.stringify(config, null, 2);
+        } catch (error) {
+          status.value = "Failed";
+          output.value = error.message;
+        }
+      });
+
+      sessionButton.addEventListener("click", async () => {
+        saveSettings();
+        status.value = "Recording";
+        output.value = "";
+        try {
+          const result = await invokeTauri("subtext_session", {
+            request: {
+              nodeCommand: nodeCommand.value,
+              cliPath: cliPath.value,
+              transcriptCommand: transcriptCommand.value,
+              duration: duration.value,
+              target: target.value,
+              verbosity: verbosity.value
+            }
+          });
+          status.value = result.ok ? "Delivered" : "Failed";
+          output.value = [result.stdout, result.stderr].filter(Boolean).join("\n");
+        } catch (error) {
+          status.value = "Failed";
+          output.value = error.message;
+        }
+      });
+
+      function applyConfig(config) {
+        nodeCommand.value = config.nodeCommand || nodeCommand.value;
+        cliPath.value = config.subtextCliPath || cliPath.value;
+        transcriptCommand.value = config.transcriptCommand || transcriptCommand.value;
+        duration.value = config.duration === undefined ? duration.value : String(config.duration);
+        target.value = config.target || target.value;
+        verbosity.value = config.verbosity || verbosity.value;
+        hotkey.value = config.hotkey?.accelerator || hotkey.value;
+      }
+
+      function saveSettings() {
+        window.localStorage.setItem("subtextDesktopConfigPath", configPath.value);
+        window.localStorage.setItem("subtextDesktopNodeCommand", nodeCommand.value);
+        window.localStorage.setItem("subtextDesktopCliPath", cliPath.value);
+        window.localStorage.setItem("subtextDesktopTranscriptCommand", transcriptCommand.value);
+        window.localStorage.setItem("subtextDesktopDuration", duration.value);
+        window.localStorage.setItem("subtextDesktopTarget", target.value);
+        window.localStorage.setItem("subtextDesktopVerbosity", verbosity.value);
+      }
+
+      function invokeTauri(command, payload) {
+        const invoke = window.__TAURI__?.core?.invoke;
+        if (!invoke) throw new Error("Tauri invoke bridge is unavailable.");
+        return invoke(command, payload);
+      }
+    </script>
+  </body>
+</html>

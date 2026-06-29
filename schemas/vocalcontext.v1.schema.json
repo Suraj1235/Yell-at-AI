@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://subtext.dev/schemas/vocalcontext.v1.schema.json",
+  "title": "Vocal Context v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "text", "emphasis", "prosody", "flags", "calibration"],
+  "properties": {
+    "schema": {
+      "const": "vocalcontext/v1"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "word_timestamps"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "word_timestamps": { "type": "boolean" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "language": { "type": "string", "minLength": 1 }
+      }
+    },
+    "emphasis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["word", "z"],
+        "properties": {
+          "word": { "type": "string", "minLength": 1 },
+          "z": { "type": "number" },
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "prosody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rate", "pause_density", "terminal_pitch", "energy", "pitch_range", "voice_quality"],
+      "properties": {
+        "rate": { "enum": ["slow", "normal", "fast"] },
+        "pause_density": { "enum": ["low", "moderate", "high"] },
+        "terminal_pitch": { "enum": ["rising", "falling", "level", "unknown"] },
+        "energy": { "enum": ["low", "medium", "high"] },
+        "pitch_range": { "enum": ["narrow", "medium", "wide"] },
+        "voice_quality": { "enum": ["steady", "tense"] }
+      }
+    },
+    "affect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emotional_coloring", "meaning_cues", "interpretation", "confidence", "evidence"],
+      "properties": {
+        "emotional_coloring": {
+          "enum": ["neutral", "subdued", "emphatic", "urgent", "uncertain", "hesitant", "tense", "mixed", "high_intensity"]
+        },
+        "meaning_cues": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "urgency",
+              "yelling",
+              "confusion",
+              "hesitation",
+              "uncertainty",
+              "tension",
+              "lexical_prosodic_mismatch",
+              "emphasis"
+            ]
+          }
+        },
+        "interpretation": { "type": "string", "minLength": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "assistant_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priority", "response_style", "directives"],
+      "properties": {
+        "priority": {
+          "enum": [
+            "normal",
+            "preserve_emphasis",
+            "careful",
+            "clarify",
+            "act_quickly",
+            "resolve_mismatch",
+            "de_escalate"
+          ]
+        },
+        "response_style": {
+          "enum": [
+            "normal",
+            "focused",
+            "careful",
+            "patient",
+            "direct",
+            "steady",
+            "calm"
+          ]
+        },
+        "directives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "text"],
+            "properties": {
+              "type": {
+                "enum": [
+                  "respond_calmly",
+                  "avoid_escalation",
+                  "preserve_emphasis",
+                  "ask_clarifying_question",
+                  "state_assumptions",
+                  "prioritize_direct_action",
+                  "avoid_overconfidence",
+                  "keep_concise",
+                  "resolve_text_tone_mismatch",
+                  "use_transcript_normally"
+                ]
+              },
+              "text": { "type": "string", "minLength": 1 },
+              "source_flag": {
+                "enum": [
+                  "urgency",
+                  "yelling",
+                  "confusion",
+                  "hesitation",
+                  "uncertainty",
+                  "tension",
+                  "lexical_prosodic_mismatch",
+                  "emphasis"
+                ]
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "word_features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "word",
+          "start",
+          "end",
+          "duration_frames",
+          "log_f0_range",
+          "log_f0_median",
+          "log_f0_slope",
+          "log_energy",
+          "duration_source"
+        ],
+        "properties": {
+          "word": { "type": "string", "minLength": 1 },
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 },
+          "duration_frames": { "type": "number", "minimum": 0 },
+          "log_f0_range": { "type": "number" },
+          "log_f0_median": { "type": "number" },
+          "log_f0_slope": { "type": "number" },
+          "log_energy": { "type": "number" },
+          "duration_source": { "enum": ["estimated_phone_duration", "platform_phone_timestamps"] }
+        }
+      }
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "evidence", "conf"],
+        "properties": {
+          "type": {
+            "enum": [
+              "urgency",
+              "yelling",
+              "confusion",
+              "hesitation",
+              "uncertainty",
+              "tension",
+              "lexical_prosodic_mismatch",
+              "emphasis"
+            ]
+          },
+          "evidence": { "type": "string", "minLength": 1 },
+          "conf": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "confidence", "matched_words", "total_words"],
+      "properties": {
+        "source": { "enum": ["platform_word_timestamps", "proportional"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "matched_words": { "type": "number", "minimum": 0 },
+        "total_words": { "type": "number", "minimum": 0 }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "samples"],
+      "properties": {
+        "baseline": { "enum": ["utterance", "personal"] },
+        "samples": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

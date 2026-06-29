@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "subtext": {
+      "command": "node",
+      "args": ["/absolute/path/to/Yell-at-AI/bin/subtext.js", "mcp"]
+    }
+  }
+}

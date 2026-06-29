@@ -1,0 +1,17 @@
+Subtext / Yell-at-AI
+Copyright (c) 2026 Suraj Kuncham, Manish Sampathirao, and Subtext contributors.
+
+Primary authors:
+- Suraj Kuncham (https://github.com/Suraj1235)
+- Manish Sampathirao (https://github.com/manishgit61332)
+
+This project is distributed under a source-available noncommercial license.
+Commercial, enterprise, revenue-generating, or profitable use requires a separate commercial license.
+
+Acknowledgements:
+- Speech and prosody foundations: eGeMAPS, openSMILE, Praat, Parselmouth, WebRTC VAD, and whisper.cpp.
+- External evaluation corpora and wild speech sources: CREMA-D, RAVDESS, Berlin EmoDB, MIT OpenCourseWare, NASA, The White House, City of Arvada, USGS Presentations, PyCon US, FOSDEM, GitButler, Stanford Online, TED, and Google for Developers.
+- Assistant and integration ecosystems: Model Context Protocol, Claude Code, Codex, VS Code, and realtime audio assistants.
+- Runtime, benchmark, and future packaging references: Node.js, JSON Schema, yt-dlp, imageio-ffmpeg, Tauri, cpal, napi-rs, and PyO3.
+
+These acknowledgements are credits for research, tools, datasets, and ecosystems that informed the project. They do not imply bundled code, bundled model weights, endorsement, or relicensing.

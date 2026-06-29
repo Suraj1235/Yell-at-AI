@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Subtext animated voice context banner</title>
+  <desc id="desc">A dark GitHub-style banner with animated waveform bars, a pitch line, and the Subtext vocal context contract.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#09111f"/>
+      <stop offset="0.48" stop-color="#111827"/>
+      <stop offset="1" stop-color="#102a2a"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" x2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="0.48" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .title { font: 800 62px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #f8fafc; letter-spacing: 0; }
+      .tag { font: 500 23px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #cbd5e1; letter-spacing: 0; }
+      .code { font: 600 19px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #d1fae5; letter-spacing: 0; }
+      .tiny { font: 500 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #94a3b8; letter-spacing: 0; }
+      .bar { fill: url(#signal); opacity: 0.86; transform-origin: center; }
+      .line { fill: none; stroke: url(#signal); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; filter: url(#softGlow); }
+      .chip { fill: rgba(15, 23, 42, 0.78); stroke: rgba(148, 163, 184, 0.35); stroke-width: 1; }
+      @media (prefers-reduced-motion: reduce) {
+        animate, animateTransform { display: none; }
+      }
+    </style>
+  </defs>
+  <rect width="1280" height="420" rx="28" fill="url(#bg)"/>
+  <circle cx="1110" cy="72" r="170" fill="#2dd4bf" opacity="0.08"/>
+  <circle cx="145" cy="365" r="220" fill="#60a5fa" opacity="0.08"/>
+  <path class="line" d="M96 285 C190 215 260 330 358 245 S535 178 640 235 800 330 930 248 1100 140 1184 202">
+    <animate attributeName="d" dur="4.6s" repeatCount="indefinite"
+      values="M96 285 C190 215 260 330 358 245 S535 178 640 235 800 330 930 248 1100 140 1184 202;
+              M96 255 C190 305 260 210 358 270 S535 314 640 222 800 145 930 256 1100 306 1184 185;
+              M96 285 C190 215 260 330 358 245 S535 178 640 235 800 330 930 248 1100 140 1184 202"/>
+  </path>
+  <g transform="translate(93 310)">
+    <rect class="bar" x="0" y="-28" width="12" height="56" rx="6">
+      <animate attributeName="height" values="56;92;42;56" dur="1.4s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="-28;-46;-21;-28" dur="1.4s" repeatCount="indefinite"/>
+    </rect>
+    <rect class="bar" x="28" y="-44" width="12" height="88" rx="6">
+      <animate attributeName="height" values="88;36;108;88" dur="1.7s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="-44;-18;-54;-44" dur="1.7s" repeatCount="indefinite"/>
+    </rect>
+    <rect class="bar" x="56" y="-20" width="12" height="40" rx="6">
+      <animate attributeName="height" values="40;86;52;40" dur="1.25s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="-20;-43;-26;-20" dur="1.25s" repeatCount="indefinite"/>
+    </rect>
+    <rect class="bar" x="84" y="-52" width="12" height="104" rx="6">
+      <animate attributeName="height" values="104;66;122;104" dur="1.55s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="-52;-33;-61;-52" dur="1.55s" repeatCount="indefinite"/>
+    </rect>
+    <rect class="bar" x="112" y="-34" width="12" height="68" rx="6">
+      <animate attributeName="height" values="68;112;46;68" dur="1.45s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="-34;-56;-23;-34" dur="1.45s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+  <text x="90" y="112" class="title">Subtext</text>
+  <text x="90" y="153" class="tag">Model-free vocal context for coding assistants</text>
+  <text x="90" y="190" class="tiny">Pitch + energy + pacing + pauses + emphasis -> vocalcontext/v1</text>
+  <g transform="translate(760 82)">
+    <rect class="chip" width="420" height="186" rx="18"/>
+    <text x="26" y="46" class="code">&lt;vocal-context schema="v1"&gt;</text>
+    <text x="26" y="84" class="code">emphasis: whole z=1.36</text>
+    <text x="26" y="122" class="code">delivery: fast, high energy</text>
+    <text x="26" y="160" class="code">reasoning: host assistant</text>
+  </g>
+</svg>

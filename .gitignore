@@ -1,0 +1,17 @@
+node_modules/
+.DS_Store
+npm-debug.log*
+coverage/
+.nyc_output/
+dist/
+build/
+tmp/
+.subtext/
+apps/desktop/src-tauri/target/
+apps/desktop/dist/
+eval/fixtures/
+eval/llm-judge/out/
+eval/external/cache/
+eval/external/out/
+eval/wild/cache/
+eval/wild/out/

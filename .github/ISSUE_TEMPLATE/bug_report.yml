@@ -1,0 +1,57 @@
+name: Bug report
+description: Report incorrect vocal-context behavior, adapter failures, or packaging issues.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - CLI
+        - HTTP / browser preview
+        - MCP / Codex
+        - Claude Code
+        - VS Code / IDE
+        - Native desktop / hotkey
+        - Universal clipboard handoff
+        - Evaluation / benchmark
+        - Documentation / packaging
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Include commands, transcript text, fixture name, or adapter steps.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed vocalcontext/v1 output
+      description: Paste the contract or prompt block if available. Remove private audio or transcript content.
+      render: json
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, OS, microphone/source, and whether a personal baseline was used.
+      placeholder: "Node 22, macOS, built-in mic, no baseline"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I am not using this for emotion diagnosis, hiring, surveillance, deception detection, medical assessment, or another high-stakes decision.
+          required: true
+        - label: I understand this project emits prosody evidence, not psychological emotion labels.
+          required: true

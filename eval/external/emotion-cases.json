@@ -1,0 +1,358 @@
+[
+  {
+    "id": "crema_angry_dfa",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech",
+    "emotion": "angry",
+    "transcript": "Don't forget a jacket.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_ANG_XX.wav",
+    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "notes": "CREMA-D filename label ANG."
+  },
+  {
+    "id": "crema_happy_dfa",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech",
+    "emotion": "happy",
+    "transcript": "Don't forget a jacket.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_HAP_XX.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "notes": "CREMA-D filename label HAP."
+  },
+  {
+    "id": "crema_sad_dfa",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech",
+    "emotion": "sad",
+    "transcript": "Don't forget a jacket.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_SAD_XX.wav",
+    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "notes": "CREMA-D filename label SAD."
+  },
+  {
+    "id": "crema_neutral_dfa",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech",
+    "emotion": "neutral",
+    "transcript": "Don't forget a jacket.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_NEU_XX.wav",
+    "expectAll": ["delivery_clear"],
+    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "notes": "CREMA-D filename label NEU. Neutral expects no strong assistant-steering flags, not flat prosody."
+  },
+  {
+    "id": "crema_angry_ieo_1002",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech, different speaker",
+    "emotion": "angry",
+    "transcript": "It's eleven o'clock.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_ANG_HI.wav",
+    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "notes": "Fresh CREMA-D speaker 1002, sentence IEO, high-intensity anger."
+  },
+  {
+    "id": "crema_happy_ieo_1002",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech, different speaker",
+    "emotion": "happy",
+    "transcript": "It's eleven o'clock.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_HAP_HI.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "notes": "Fresh CREMA-D speaker 1002, sentence IEO, high-intensity happiness."
+  },
+  {
+    "id": "crema_sad_ieo_1002",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech, different speaker",
+    "emotion": "sad",
+    "transcript": "It's eleven o'clock.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_SAD_LO.wav",
+    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "notes": "Fresh CREMA-D speaker 1002, sentence IEO, low-intensity sadness."
+  },
+  {
+    "id": "crema_fear_ieo_1002",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech, different speaker",
+    "emotion": "fearful",
+    "transcript": "It's eleven o'clock.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_FEA_HI.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "terminal_rising", "flag_uncertainty", "voice_tense"],
+    "notes": "Fresh CREMA-D speaker 1002, sentence IEO, high-intensity fear."
+  },
+  {
+    "id": "crema_neutral_ieo_1002",
+    "source": "CREMA-D",
+    "license": "Source repository does not declare an SPDX license; use only under the dataset/provider terms.",
+    "genre": "acted English speech, different speaker",
+    "emotion": "neutral",
+    "transcript": "It's eleven o'clock.",
+    "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_NEU_XX.wav",
+    "expectAll": ["delivery_clear"],
+    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "notes": "Fresh CREMA-D speaker 1002, neutral sentence IEO."
+  },
+  {
+    "id": "ravdess_happy_speech",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech",
+    "emotion": "happy",
+    "transcript": "Kids are talking by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-03-02-01-01-01.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "notes": "RAVDESS code 03 = happy, intensity 02 = strong."
+  },
+  {
+    "id": "ravdess_sad_speech",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech",
+    "emotion": "sad",
+    "transcript": "Kids are talking by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-04-02-01-01-01.wav",
+    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "notes": "RAVDESS code 04 = sad, intensity 02 = strong."
+  },
+  {
+    "id": "ravdess_angry_speech",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech",
+    "emotion": "angry",
+    "transcript": "Kids are talking by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-05-02-01-01-01.wav",
+    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "notes": "RAVDESS code 05 = angry, intensity 02 = strong."
+  },
+  {
+    "id": "ravdess_fearful_speech",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech",
+    "emotion": "fearful",
+    "transcript": "Kids are talking by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-06-02-01-01-01.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "terminal_rising", "flag_uncertainty", "voice_tense"],
+    "notes": "RAVDESS code 06 = fearful, intensity 02 = strong."
+  },
+  {
+    "id": "ravdess_neutral_actor02",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech, different actor",
+    "emotion": "neutral",
+    "transcript": "Dogs are sitting by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-01-01-02-01-02.wav",
+    "expectAll": ["delivery_clear"],
+    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "notes": "Fresh RAVDESS Actor_02 neutral, statement 02."
+  },
+  {
+    "id": "ravdess_happy_actor02",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech, different actor",
+    "emotion": "happy",
+    "transcript": "Dogs are sitting by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-03-02-02-01-02.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "notes": "Fresh RAVDESS Actor_02 happy, strong intensity, statement 02."
+  },
+  {
+    "id": "ravdess_sad_actor02",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech, different actor",
+    "emotion": "sad",
+    "transcript": "Dogs are sitting by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-04-02-02-01-02.wav",
+    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "notes": "Fresh RAVDESS Actor_02 sad, strong intensity, statement 02."
+  },
+  {
+    "id": "ravdess_angry_actor02",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech, different actor",
+    "emotion": "angry",
+    "transcript": "Dogs are sitting by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-05-02-02-01-02.wav",
+    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "notes": "Fresh RAVDESS Actor_02 angry, strong intensity, statement 02."
+  },
+  {
+    "id": "ravdess_fearful_actor02",
+    "source": "RAVDESS",
+    "license": "CC BY-NC-SA 4.0 via Hugging Face mirror; original dataset on Zenodo.",
+    "genre": "acted English theatrical speech, different actor",
+    "emotion": "fearful",
+    "transcript": "Dogs are sitting by the door.",
+    "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-06-02-02-01-02.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "terminal_rising", "flag_uncertainty", "voice_tense"],
+    "notes": "Fresh RAVDESS Actor_02 fearful, strong intensity, statement 02."
+  },
+  {
+    "id": "emodb_angry_a02",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech",
+    "emotion": "angry",
+    "transcript": "Das will sie am Mittwoch abgeben.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/03a02Wc.wav",
+    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "notes": "EmoDB code W = Wut/anger."
+  },
+  {
+    "id": "emodb_happy_a02",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech",
+    "emotion": "happy",
+    "transcript": "Das will sie am Mittwoch abgeben.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/03a02Fc.wav",
+    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "notes": "EmoDB code F = Freude/happiness."
+  },
+  {
+    "id": "emodb_sad_a02",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech",
+    "emotion": "sad",
+    "transcript": "Das will sie am Mittwoch abgeben.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/15a02Ta.wav",
+    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "notes": "EmoDB code T = Trauer/sadness. Kept as an utterance-only global-threshold sentinel."
+  },
+  {
+    "id": "emodb_neutral_a02",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech",
+    "emotion": "neutral",
+    "transcript": "Das will sie am Mittwoch abgeben.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/03a02Nc.wav",
+    "expectAll": ["delivery_clear"],
+    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "notes": "EmoDB code N = neutral. Neutral expects no strong assistant-steering flags, not flat prosody."
+  },
+  {
+    "id": "emodb_sad_b02_sp15_personal",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech, same-speaker calibrated",
+    "emotion": "sad",
+    "transcript": "Sie haben es gerade hochgetragen und jetzt gehen sie wieder runter.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/15b02Tc.wav",
+    "baseline": [
+      {
+        "id": "emodb_sp15_neutral_a02",
+        "source": "Berlin EmoDB",
+        "transcript": "Das will sie am Mittwoch abgeben.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15a02Na.wav"
+      },
+      {
+        "id": "emodb_sp15_neutral_b02",
+        "source": "Berlin EmoDB",
+        "transcript": "Sie haben es gerade hochgetragen und jetzt gehen sie wieder runter.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b02Nd.wav"
+      },
+      {
+        "id": "emodb_sp15_neutral_b03",
+        "source": "Berlin EmoDB",
+        "transcript": "An den Wochenenden bin ich jetzt immer nach Hause gefahren und habe Agnes besucht.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b03Nb.wav"
+      }
+    ],
+    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "notes": "Fresh same-speaker sadness case using a three-sample speaker-15 neutral baseline."
+  },
+  {
+    "id": "emodb_angry_a02_sp15_personal",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech, same-speaker calibrated",
+    "emotion": "angry",
+    "transcript": "Das will sie am Mittwoch abgeben.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/15a02Wb.wav",
+    "baseline": [
+      {
+        "id": "emodb_sp15_neutral_a02",
+        "source": "Berlin EmoDB",
+        "transcript": "Das will sie am Mittwoch abgeben.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15a02Na.wav"
+      },
+      {
+        "id": "emodb_sp15_neutral_b02",
+        "source": "Berlin EmoDB",
+        "transcript": "Sie haben es gerade hochgetragen und jetzt gehen sie wieder runter.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b02Nd.wav"
+      },
+      {
+        "id": "emodb_sp15_neutral_b03",
+        "source": "Berlin EmoDB",
+        "transcript": "An den Wochenenden bin ich jetzt immer nach Hause gefahren und habe Agnes besucht.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b03Nb.wav"
+      }
+    ],
+    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "notes": "Fresh same-speaker anger case using the same speaker-15 neutral baseline."
+  },
+  {
+    "id": "emodb_neutral_a02_sp15_personal",
+    "source": "Berlin EmoDB",
+    "license": "CC BY 4.0 via Zenodo record 7447302.",
+    "genre": "acted German speech, same-speaker calibrated",
+    "emotion": "neutral",
+    "transcript": "Das will sie am Mittwoch abgeben.",
+    "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+    "archiveEntry": "emodb/wav/15a02Na.wav",
+    "baseline": [
+      {
+        "id": "emodb_sp15_neutral_b02",
+        "source": "Berlin EmoDB",
+        "transcript": "Sie haben es gerade hochgetragen und jetzt gehen sie wieder runter.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b02Nd.wav"
+      },
+      {
+        "id": "emodb_sp15_neutral_b03",
+        "source": "Berlin EmoDB",
+        "transcript": "An den Wochenenden bin ich jetzt immer nach Hause gefahren und habe Agnes besucht.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b03Nb.wav"
+      },
+      {
+        "id": "emodb_sp15_neutral_b10",
+        "source": "Berlin EmoDB",
+        "transcript": "Die wird auf dem Platz sein, wo wir sie immer hinlegen.",
+        "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
+        "archiveEntry": "emodb/wav/15b10Nc.wav"
+      }
+    ],
+    "expectAll": ["delivery_clear"],
+    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "notes": "Fresh same-speaker neutral case using held-out speaker-15 neutral baseline samples."
+  }
+]

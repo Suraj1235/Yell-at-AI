@@ -1,0 +1,98 @@
+[
+  {
+    "id": "cli",
+    "name": "Subtext CLI",
+    "tier": "B/C",
+    "status": "implemented",
+    "entrypoint": "node bin/subtext.js analyze --audio turn.wav --text \"...\" --format prompt",
+    "surface": "any shell, wrapper, or automation harness"
+  },
+  {
+    "id": "http",
+    "name": "Local HTTP API",
+    "tier": "B/C",
+    "status": "implemented",
+    "entrypoint": "node bin/subtext.js serve",
+    "surface": "desktop apps, browser extensions, IDE plugins, local daemons"
+  },
+  {
+    "id": "web-preview",
+    "name": "Browser Microphone Preview",
+    "tier": "C",
+    "status": "implemented",
+    "entrypoint": "node bin/subtext.js serve",
+    "surface": "local browser UI at http://127.0.0.1:8765"
+  },
+  {
+    "id": "desktop-capture",
+    "name": "Desktop Microphone Capture",
+    "tier": "C",
+    "status": "implemented",
+    "entrypoint": "node bin/subtext.js session --duration 4 --transcript-command \"host-transcript --json {audio}\"",
+    "surface": "bounded local OS microphone recording plus host/native transcript bridge"
+  },
+  {
+    "id": "mcp",
+    "name": "MCP-style JSON-RPC Server",
+    "tier": "B",
+    "status": "implemented",
+    "entrypoint": "node bin/subtext.js mcp",
+    "surface": "Codex, Claude-compatible MCP hosts, agent harnesses"
+  },
+  {
+    "id": "codex",
+    "name": "Codex",
+    "tier": "B",
+    "status": "template-tested",
+    "entrypoint": "adapters/codex/mcp.config.example.json",
+    "surface": "Codex MCP configuration"
+  },
+  {
+    "id": "claude-code",
+    "name": "Claude Code",
+    "tier": "B",
+    "status": "template-tested",
+    "entrypoint": "adapters/claude-code/hooks/user-prompt-submit.mjs",
+    "surface": "UserPromptSubmit-style hook plus Subtext skill"
+  },
+  {
+    "id": "realtime",
+    "name": "Native Audio Realtime Assistants",
+    "tier": "A",
+    "status": "steering-template",
+    "entrypoint": "adapters/realtime/README.md",
+    "surface": "OpenAI Realtime, Gemini Live, or other native audio-in sessions"
+  },
+  {
+    "id": "vscode",
+    "name": "VS Code / IDE Chat",
+    "tier": "B/C",
+    "status": "template-tested",
+    "entrypoint": "adapters/vscode/package.json",
+    "surface": "extension commands copy, insert, or preview rendered vocal-context prompts"
+  },
+  {
+    "id": "hotkey",
+    "name": "Global Hotkey Bridge",
+    "tier": "C",
+    "status": "template-tested",
+    "entrypoint": "adapters/hotkey/hammerspoon-subtext.lua",
+    "surface": "local global hotkey automation that invokes bounded subtext ptt and active-app paste"
+  },
+  {
+    "id": "native-desktop",
+    "name": "Native Desktop App Scaffold",
+    "tier": "C",
+    "status": "template-tested",
+    "entrypoint": "apps/desktop/src-tauri/tauri.conf.json",
+    "surface": "Tauri/Rust scaffold for a visible bounded desktop capture app"
+  },
+  {
+    "id": "universal",
+    "name": "Universal Text Field",
+    "tier": "C",
+    "status": "implemented",
+    "entrypoint": "node bin/subtext.js ptt --turns 3 --duration 4 --transcript-command \"host-transcript --json {audio}\" --target paste",
+    "surface": "clipboard or explicit active-app paste into any text field"
+  }
+]
