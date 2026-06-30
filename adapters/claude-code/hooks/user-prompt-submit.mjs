@@ -5,53 +5,93 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const event = JSON.parse(await readStdin());
-const audioPath = event.audioPath ?? process.env.SUBTEXT_AUDIO_PATH;
-const transcriptInput = await buildTranscriptInput(event);
-
-if (!audioPath || !transcriptInput) {
-  process.stdout.write(`${JSON.stringify(event)}\n`);
-  process.exit(0);
+// A UserPromptSubmit hook must NEVER block the user's prompt: any failure has to
+// fail open by emitting usable stdout and exiting 0. We therefore read and parse
+// stdin defensively. If stdin is missing or not valid JSON we echo the raw input
+// straight back so the host receives its own prompt unchanged.
+let raw = "";
+try {
+  raw = await readStdin();
+} catch (error) {
+  failOpenRaw(raw, error);
 }
 
-const cliPath = resolveCliPath();
+let event;
 try {
-  const contract = JSON.parse(await runSubtextCli({
-    cliPath,
-    args: [
-      "analyze",
-      "--audio",
-      audioPath,
-      ...transcriptInput.args,
-      "--format",
-      "json"
-    ]
-  }));
-  const enriched = await runSubtextCli({
-    cliPath,
-    args: [
-      "render",
-      "--verbosity",
-      process.env.SUBTEXT_VERBOSITY ?? "full"
-    ],
-    input: JSON.stringify(contract)
-  });
-
-  process.stdout.write(`${JSON.stringify({
-    ...event,
-    prompt: enriched,
-    text: enriched,
-    subtext: contract
-  })}\n`);
+  event = JSON.parse(raw);
+  if (!event || typeof event !== "object") throw new Error("event is not a JSON object");
 } catch (error) {
+  failOpenRaw(raw, error);
+}
+
+await enrichEvent(event);
+
+async function enrichEvent(event) {
+  const audioPath = event.audioPath ?? process.env.SUBTEXT_AUDIO_PATH;
+  let transcriptInput = null;
+  try {
+    transcriptInput = await buildTranscriptInput(event);
+  } catch (error) {
+    failOpenEvent(event, error);
+    return;
+  }
+
+  if (!audioPath || !transcriptInput) {
+    process.stdout.write(`${JSON.stringify(event)}\n`);
+    process.exit(0);
+  }
+
+  const cliPath = resolveCliPath();
+  try {
+    const contract = JSON.parse(await runSubtextCli({
+      cliPath,
+      args: [
+        "analyze",
+        "--audio",
+        audioPath,
+        ...transcriptInput.args,
+        "--format",
+        "json"
+      ]
+    }));
+    const enriched = await runSubtextCli({
+      cliPath,
+      args: [
+        "render",
+        "--verbosity",
+        process.env.SUBTEXT_VERBOSITY ?? "full"
+      ],
+      input: JSON.stringify(contract)
+    });
+
+    process.stdout.write(`${JSON.stringify({
+      ...event,
+      prompt: enriched,
+      text: enriched,
+      subtext: contract
+    })}\n`);
+  } catch (error) {
+    failOpenEvent(event, error);
+  } finally {
+    await transcriptInput.cleanup?.();
+  }
+}
+
+function failOpenEvent(event, error) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`subtext: Claude hook failed open: ${message}\n`);
   process.stdout.write(`${JSON.stringify({
     ...event,
     subtext_error: message
   })}\n`);
-} finally {
-  await transcriptInput.cleanup?.();
+}
+
+function failOpenRaw(raw, error) {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`subtext: Claude hook failed open: ${message}\n`);
+  // Echo whatever we received so the host's prompt passes through untouched.
+  process.stdout.write(typeof raw === "string" && raw.length > 0 ? raw : "{}\n");
+  process.exit(0);
 }
 
 function resolveCliPath() {
