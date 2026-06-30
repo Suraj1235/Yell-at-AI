@@ -114,7 +114,7 @@ what was written down. Nothing is sent over the network: it is model-free, offli
 leaned on. You will see the live transcript plus the vocal-context Subtext reads from your delivery,
 all client-side (your audio never leaves the page):
 
-> Web demo: YELL_WEB_URL_PLACEHOLDER
+> **Web demo:** fully client-side (your audio never leaves the page). Try it locally from [`apps/web`](apps/web), or deploy it to Vercel in one step — see [apps/web/README.md](apps/web/README.md).
 
 **From the terminal** - run it on a bundled sample with no setup:
 
@@ -165,7 +165,7 @@ An honest cut of what is shipped versus what is a working foundation today.
 | --- | --- | --- |
 | Prosody engine (`vocalcontext/v1`) | 🟢 shipped | model-free DSP, alignment, affect, flags; offline; cross-platform green on Windows, macOS, Linux |
 | CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
-| Web demo | 🟢 shipped | mic -> live dictation -> client-side `vocalcontext/v1` -> enriched prompt; deployed at YELL_WEB_URL_PLACEHOLDER |
+| Web demo | 🟢 shipped | mic -> live dictation -> client-side `vocalcontext/v1` -> enriched prompt; static app in `apps/web/`, one-step Vercel deploy |
 | Editor adapters (Claude Code, Codex, VS Code) | 🟢 shipped | one-command bundles with generated host config |
 | HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
 | Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |

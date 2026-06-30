@@ -10,9 +10,11 @@ Pick the path that fits you.
 
 ## 1. Web demo (no install)
 
-Open the demo, allow microphone access, and speak a short line with one word leaned on:
+Run the demo locally (any static server) from [`apps/web`](../apps/web), or deploy it to Vercel in one
+step — see [apps/web/README.md](../apps/web/README.md). Then allow microphone access and speak a short
+line with one word leaned on:
 
-> Web demo: YELL_WEB_URL_PLACEHOLDER
+> **Web demo:** static, fully client-side — `apps/web/` (public URL added once deployed).
 
 You will see the live transcript plus the vocal context Subtext reads from your delivery, with a copy
 button for the enriched prompt. Everything runs in the page - your audio never leaves the browser.
