@@ -1,4 +1,3 @@
-import { readWavFile } from "../audio/wav.js";
 import { extractProsody } from "../dsp/features.js";
 import { mean, round, stdev } from "../dsp/stats.js";
 import { tokenizeWords } from "../text/tokenize.js";
@@ -7,6 +6,7 @@ const BASELINE_SCHEMA = "subtext/baseline/v1";
 const MIN_SPREAD = 0.001;
 
 export async function buildBaselineFromFiles(items, options = {}) {
+  const { readWavFile } = await import("../audio/wav.js"); // lazy: keeps this module browser-safe (isBaseline is on the browser path)
   const entries = [];
   for (const item of items) {
     const wav = await readWavFile(item.audioPath);
