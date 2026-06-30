@@ -11,7 +11,7 @@ export async function readWavFile(filePath) {
 export function parseWav(bufferLike) {
   const buffer = Buffer.from(bufferLike);
   if (buffer.toString("ascii", 0, 4) !== "RIFF" || buffer.toString("ascii", 8, 12) !== "WAVE") {
-    throw new Error("Expected a RIFF/WAVE file.");
+    throw new Error("Expected a RIFF/WAVE (.wav) file. Subtext analyzes WAV audio directly; convert other formats (MP3/M4A/OGG/WebM) to WAV first, e.g. ffmpeg -i input.mp3 turn.wav");
   }
 
   let offset = 12;

@@ -358,8 +358,11 @@ async function captureFromArgs(args) {
 }
 
 async function transcriptFromArgs(args, textSource, audioPath = null, turn = null) {
-  if (args.text) {
-    return normalizeTranscriptEnvelope({ text: String(args.text) }, transcriptOverrides(args, textSource));
+  if (typeof args.text === "string") {
+    if (!args.text.trim()) {
+      throw new Error("--text was provided but is empty; pass the transcript text in quotes.");
+    }
+    return normalizeTranscriptEnvelope({ text: args.text }, transcriptOverrides(args, textSource));
   }
 
   if (args.transcript) {
