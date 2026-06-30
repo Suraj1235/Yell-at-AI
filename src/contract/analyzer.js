@@ -514,7 +514,7 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
     });
   }
 
-  if (isUncertainRise(text, prosody, wordMetrics, filledPauseCount, softenerCount, confusionMarkerCount)) {
+  if (isUncertainRise(text, prosody, filledPauseCount, softenerCount, confusionMarkerCount)) {
     flags.push({
       type: "uncertainty",
       evidence: "rising terminal pitch on a non-question transcript",
@@ -617,14 +617,16 @@ function isConfused(text, prosody, filledPauseCount, softenerCount, confusionMar
   return questionLike && uncertainDelivery;
 }
 
-function isUncertainRise(text, prosody, wordMetrics, filledPauseCount, softenerCount, confusionMarkerCount) {
+function isUncertainRise(text, prosody, filledPauseCount, softenerCount, confusionMarkerCount) {
   if (prosody.terminalPitch !== "rising" || /[?]\s*$/.test(text.trim())) return false;
-  const shortTurn = wordMetrics.length <= 24;
+  // Rising terminal pitch on a non-question is only weak evidence; require a real
+  // uncertainty signal (filled pause, softener, confusion marker, or high pause density)
+  // rather than mere brevity, which short high-arousal declaratives (e.g. acted anger) also share.
   const hasUncertaintyContext = filledPauseCount > 0
     || softenerCount > 0
     || confusionMarkerCount > 0
     || prosody.pauseDensity === "high";
-  return shortTurn || hasUncertaintyContext;
+  return hasUncertaintyContext;
 }
 
 function confusionEvidence(prosody, filledPauseCount, softenerCount, confusionMarkerCount) {

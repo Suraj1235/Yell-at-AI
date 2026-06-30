@@ -157,6 +157,12 @@ It needs only Node.js >= 20: no native compile step, no bundled model weights, n
 no default network egress. New to it? Start with the [Quickstart](docs/QUICKSTART.md) for web, CLI, and
 the Claude Code / Codex / VS Code editor adapters.
 
+> **Tip — calibrate once for the best reads.** Uncalibrated analysis uses fixed thresholds that assume
+> a typical recording level, so a quiet mic or an unusually loud/soft speaker can be under- or
+> over-read. For the most reliable results across your microphone and speaking style, run
+> `yell-at-ai calibrate` once; Subtext then judges each turn relative to *your* baseline instead of
+> absolute thresholds. See [docs/CALIBRATION.md](docs/CALIBRATION.md).
+
 ## Status
 
 An honest cut of what is shipped versus what is a working foundation today.
@@ -294,7 +300,7 @@ npm run eval:judge:mock # offline executable host-model judge report
 Latest local verification:
 
 ```text
-64/64 tests passing
+72/72 tests passing
 20/20 functional plugin-boundary tests passing
 p95 latency: 32.161 ms, budget: 300 ms
 package dry-run: 125 files
