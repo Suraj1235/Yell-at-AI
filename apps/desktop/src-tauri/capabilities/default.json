@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the Subtext Desktop dev build: core window APIs, the Ctrl+Alt+Y global shortcut, and shelling out to Node as the Subtext sidecar.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-title",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
+    "global-shortcut:allow-is-registered",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "node", "cmd": "node", "args": true, "sidecar": false },
+        { "name": "node-exe", "cmd": "node.exe", "args": true, "sidecar": false }
+      ]
+    }
+  ]
+}

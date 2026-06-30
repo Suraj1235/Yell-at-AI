@@ -94,12 +94,82 @@
         margin-top: 12px;
         color: var(--muted);
       }
+
+      .banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 18px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0d0f12;
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--muted);
+        flex: 0 0 auto;
+      }
+
+      .banner[data-state="listening"] .dot { background: #f5b14c; }
+      .banner[data-state="delivered"] .dot { background: var(--teal); }
+      .banner[data-state="failed"] .dot { background: #f0616d; }
+
+      .banner-text {
+        display: grid;
+        gap: 2px;
+      }
+
+      .banner-state {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .banner-detail {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      kbd {
+        display: inline-block;
+        padding: 1px 7px;
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 6px;
+        background: #181b20;
+        font: inherit;
+        font-size: 13px;
+      }
+
+      .hint {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body>
     <main>
       <section>
         <h1>Subtext Desktop</h1>
+        <div class="banner" id="banner" data-state="ready">
+          <span class="dot"></span>
+          <span class="banner-text">
+            <span class="banner-state" id="bannerState">Ready</span>
+            <span class="banner-detail" id="bannerDetail">Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Y</kbd> anywhere to capture one bounded turn.</span>
+          </span>
+        </div>
+        <p class="hint">
+          The push-to-talk hotkey <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Y</kbd> records a short
+          natural-speech turn, runs prosody analysis through the Node core, and pastes the
+          enriched prompt into whatever app currently has focus. You can also run a single turn
+          manually with the button below. Status updates appear above whether the run was started
+          by the hotkey or the button.
+        </p>
         <div class="row">
           <label>
             Config Path
@@ -140,7 +210,7 @@
           </select>
         </label>
         <label>
-          Hotkey
+          Config Hotkey (cross-platform placeholder; Windows active accelerator is Ctrl+Alt+Y)
           <input id="hotkey" value="Cmd+Alt+Ctrl+Y" disabled>
         </label>
         <button id="sessionButton" type="button">Record Bounded Turn</button>
@@ -164,6 +234,20 @@
       const target = document.querySelector("#target");
       const verbosity = document.querySelector("#verbosity");
       const hotkey = document.querySelector("#hotkey");
+      const banner = document.querySelector("#banner");
+      const bannerState = document.querySelector("#bannerState");
+      const bannerDetail = document.querySelector("#bannerDetail");
+
+      // Reflect push-to-talk status pushed from the native layer (hotkey-driven
+      // turns) into the same banner the manual button updates.
+      function setBanner(state, detail) {
+        const key = String(state || "ready").toLowerCase();
+        banner.dataset.state = key;
+        bannerState.textContent = state || "Ready";
+        if (detail) bannerDetail.textContent = detail;
+      }
+
+      listenForStatus();
 
       configPath.value = window.localStorage.getItem("subtextDesktopConfigPath") || configPath.value;
       nodeCommand.value = window.localStorage.getItem("subtextDesktopNodeCommand") || nodeCommand.value;
@@ -193,6 +277,7 @@
       sessionButton.addEventListener("click", async () => {
         saveSettings();
         status.value = "Recording";
+        setBanner("Listening", "Recording a bounded turn...");
         output.value = "";
         try {
           const result = await invokeTauri("subtext_session", {
@@ -206,9 +291,11 @@
             }
           });
           status.value = result.ok ? "Delivered" : "Failed";
+          setBanner(result.ok ? "Delivered" : "Failed", result.ok ? "Manual turn complete." : "Manual turn failed - see output below.");
           output.value = [result.stdout, result.stderr].filter(Boolean).join("\n");
         } catch (error) {
           status.value = "Failed";
+          setBanner("Failed", error.message);
           output.value = error.message;
         }
       });
@@ -237,6 +324,17 @@
         const invoke = window.__TAURI__?.core?.invoke;
         if (!invoke) throw new Error("Tauri invoke bridge is unavailable.");
         return invoke(command, payload);
+      }
+
+      function listenForStatus() {
+        const listen = window.__TAURI__?.event?.listen;
+        if (!listen) return;
+        listen("subtext://status", (event) => {
+          const payload = event?.payload || {};
+          setBanner(payload.status, payload.detail);
+          if (payload.status) status.value = payload.status;
+          if (payload.detail) output.value = payload.detail;
+        });
       }
     </script>
   </body>
