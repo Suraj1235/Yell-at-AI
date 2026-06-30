@@ -45,6 +45,10 @@ before the model ever responds. Your assistant answers the words, not what you m
 turn, on your machine, and emits a strict `vocalcontext/v1` evidence block beside the transcript. The
 assistant you already use does the reasoning; Subtext just hands it the evidence it was missing.
 
+<p align="center">
+  <img src="docs/assets/subtext-demo.svg" width="100%" alt="Animated waveform of 'ship the whole thing' with the word 'whole' emphasised, producing a vocalcontext/v1 evidence tag: emphasis on whole (z=1.23), emphatic affect, guidance to preserve 'whole' as a constraint">
+</p>
+
 ```text
 "ship the WHOLE thing"   →   transcript: "ship the whole thing"
                              + vocal-context: emphasis on "whole" (z=1.23),
@@ -83,6 +87,21 @@ what was written down. Nothing is sent over the network: it is model-free, offli
 | `hesitation` | filled pauses or high pause density |
 | `uncertainty` | rising terminal pitch on non-question text |
 | `urgency` | fast, high-energy delivery with few pauses |
+
+## How it works
+
+One engine, reused by every surface: it reads the audio of your turn, aligns it to the words, and
+emits a grounded `vocalcontext/v1` block beside the transcript — the assistant you already use does the
+reasoning.
+
+```mermaid
+flowchart LR
+  MIC["audio of your turn<br/>(mic or wav)"] --> ENG
+  STT["transcript<br/>(native STT · whisper · host)"] --> ENG
+  ENG["Subtext engine<br/>DSP · alignment · analysis"] --> VC["vocalcontext/v1<br/>grounded evidence"]
+  VC --> PR["enriched prompt"]
+  PR --> AI["your assistant<br/>does the reasoning"]
+```
 
 ## Try it in 30 seconds
 
