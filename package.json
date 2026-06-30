@@ -1,7 +1,7 @@
 {
   "name": "@subtext/yell-at-ai",
   "version": "0.1.0",
-  "description": "Help AI understand what you mean and the emotion of your natural speech, not just the plain text transcript.",
+  "description": "The meaning and emotion layer for dictation. Subtext reads how you said it - emphasis, urgency, hesitation - and hands your AI a grounded vocal-context block beside the transcript. Model-free, offline, zero dependencies.",
   "type": "module",
   "author": "Suraj Kuncham and Manish Sampathirao",
   "contributors": [
@@ -14,8 +14,17 @@
       "url": "https://github.com/manishgit61332"
     }
   ],
+  "homepage": "https://github.com/manishgit61332/Yell-at-AI#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manishgit61332/Yell-at-AI.git"
+  },
+  "bugs": {
+    "url": "https://github.com/manishgit61332/Yell-at-AI/issues"
+  },
   "bin": {
-    "subtext": "./bin/subtext.js"
+    "subtext": "./bin/subtext.js",
+    "yell-at-ai": "./bin/subtext.js"
   },
   "citation": "./CITATION.cff",
   "exports": {
@@ -73,12 +82,21 @@
     "check": "npm run build && npm test && npm run bench && npm run smoke && npm run eval:judge"
   },
   "keywords": [
-    "prosody",
+    "dictation",
     "voice",
+    "prosody",
+    "emotion",
+    "speech",
+    "transcript",
+    "vocal-context",
     "coding-assistant",
     "mcp",
-    "speech",
-    "dsp"
+    "claude-code",
+    "codex",
+    "whisper",
+    "dsp",
+    "offline",
+    "accessibility"
   ],
   "license": "SEE LICENSE IN LICENSE",
   "engines": {

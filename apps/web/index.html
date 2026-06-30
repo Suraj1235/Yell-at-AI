@@ -1,0 +1,237 @@
+<title>Yell at AI — it hears how you said it</title>
+<meta name="description" content="A model-free prosody engine that runs entirely in your browser. Speak, and it reads emphasis, urgency, hesitation, and affect from your voice — then hands your assistant the context behind your words.">
+<link rel="stylesheet" href="./style.css">
+
+<a class="skip-link" href="#tool">Skip to the recorder</a>
+
+<div class="grain" aria-hidden="true"></div>
+
+<header class="site-head">
+  <div class="wordmark">
+    <span class="wordmark-glyph" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </span>
+    <span class="wordmark-text">Yell<span class="wordmark-at">@</span>AI</span>
+  </div>
+  <nav class="site-nav" aria-label="Primary">
+    <a href="#how">How it reads you</a>
+    <a href="#tool">Try it</a>
+    <a href="#privacy">Privacy</a>
+  </nav>
+</header>
+
+<main>
+  <!-- ───────────────────────── Landing / hero ───────────────────────── -->
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>vocalcontext/v1 · runs on-device</p>
+    <h1 id="hero-title" class="hero-title">
+      It hears <em>how</em><br>you said it.
+    </h1>
+    <p class="hero-lede">
+      Dictation gives your assistant the <span class="ul">words</span>. It throws away the
+      part that carried your meaning — the stress, the rush, the doubt, the edge in your voice.
+      <strong>Yell&nbsp;at&nbsp;AI</strong> reads that layer back and hands it over as evidence.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#tool">
+        <span class="btn-rec" aria-hidden="true"></span> Speak into it
+      </a>
+      <a class="btn btn-ghost" href="#how">See what it reads</a>
+    </div>
+
+    <div class="hero-readout" aria-hidden="true">
+      <div class="readout-line">
+        <span class="rk">transcript</span>
+        <span class="rv rv-plain">can we just ship the <span class="rv-flat">whole</span> thing</span>
+      </div>
+      <div class="readout-arrow">↓ reads the delivery, not just the text</div>
+      <div class="readout-line">
+        <span class="rk">emphasis</span>
+        <span class="rv"><b>whole</b> <span class="z">z&nbsp;1.34</span></span>
+      </div>
+      <div class="readout-line">
+        <span class="rk">affect</span>
+        <span class="rv"><span class="chip chip-emphatic">emphatic</span> <span class="z">0.63</span></span>
+      </div>
+      <div class="readout-line">
+        <span class="rk">flags</span>
+        <span class="rv"><span class="chip">emphasis</span><span class="chip">urgency</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── What it reads ───────────────────────── -->
+  <section class="how" id="how" aria-labelledby="how-title">
+    <div class="how-head">
+      <h2 id="how-title">Same words. Different meaning.<br>Your voice already knew.</h2>
+      <p>
+        No model weights, no API key, no upload. A lightweight signal-processing pass
+        pulls grounded cues straight from the waveform and labels them with a confidence —
+        so the assistant can see the evidence, not guess at your mood.
+      </p>
+    </div>
+    <ul class="how-grid" role="list">
+      <li class="how-card flag-emphasis">
+        <span class="how-flag" aria-hidden="true"></span>
+        <h3>Emphasis</h3>
+        <p>Which word you leaned on, scored against the rest of the sentence as a stress z-score.</p>
+      </li>
+      <li class="how-card flag-urgency">
+        <span class="how-flag" aria-hidden="true"></span>
+        <h3>Urgency &amp; pace</h3>
+        <p>Fast, high-energy delivery with few pauses — a signal to act before over-explaining.</p>
+      </li>
+      <li class="how-card flag-hesitation">
+        <span class="how-flag" aria-hidden="true"></span>
+        <h3>Hesitation</h3>
+        <p>Filled pauses and gaps that say you're thinking out loud, not handing down a spec.</p>
+      </li>
+      <li class="how-card flag-uncertainty">
+        <span class="how-flag" aria-hidden="true"></span>
+        <h3>Uncertainty</h3>
+        <p>A rising tail on a statement — the "...right?" your transcript silently dropped.</p>
+      </li>
+      <li class="how-card flag-yelling">
+        <span class="how-flag" aria-hidden="true"></span>
+        <h3>Intensity</h3>
+        <p>Very high energy and a tense voice quality. When you're actually yelling, it says so.</p>
+      </li>
+      <li class="how-card flag-lexical_prosodic_mismatch">
+        <span class="how-flag" aria-hidden="true"></span>
+        <h3>Affect</h3>
+        <p>One grounded emotional reading with an interpretation the assistant can respond to.</p>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── The tool ───────────────────────── -->
+  <section class="tool" id="tool" aria-labelledby="tool-title">
+    <div class="tool-frame">
+      <div class="tool-head">
+        <div>
+          <h2 id="tool-title">The instrument</h2>
+          <p class="tool-sub">Hold a thought. Say it the way you'd actually say it. Watch it get read.</p>
+        </div>
+        <div class="tool-status" id="status" role="status" aria-live="polite">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">Checking your browser…</span>
+        </div>
+      </div>
+
+      <!-- Recorder -->
+      <div class="recorder">
+        <canvas id="scope" class="scope" width="1200" height="220" aria-hidden="true"></canvas>
+        <div class="scope-empty" id="scope-empty">
+          <span class="scope-empty-line"></span>
+          <span class="scope-empty-text">no signal</span>
+        </div>
+
+        <div class="recorder-controls">
+          <button id="record-btn" class="record-btn" type="button" aria-pressed="false">
+            <span class="record-btn-ring" aria-hidden="true"></span>
+            <span class="record-btn-core" aria-hidden="true"></span>
+            <span class="record-btn-label">Record</span>
+          </button>
+          <div class="recorder-meta">
+            <span class="timer" id="timer">0.0s</span>
+            <span class="recorder-hint" id="recorder-hint">Up to 30 seconds per take</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live transcript -->
+      <div class="transcript-block">
+        <label class="field-label" for="transcript">
+          Transcript
+          <span class="field-source" id="transcript-source"></span>
+        </label>
+        <div class="transcript-shell">
+          <div class="transcript-live" id="transcript-live" aria-live="polite"></div>
+          <textarea
+            id="transcript"
+            class="transcript-input"
+            rows="2"
+            spellcheck="false"
+            placeholder="Your words appear here as you speak. No mic transcription in this browser? Type what you said — the prosody still comes from your recording."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="analyze-row">
+        <button id="analyze-btn" class="btn btn-primary" type="button" disabled>
+          Read the delivery
+        </button>
+        <p class="analyze-note" id="analyze-note">Record a take to enable analysis.</p>
+      </div>
+
+      <!-- Results -->
+      <div class="results" id="results" hidden>
+        <div class="results-grid">
+          <article class="result-card result-affect">
+            <h3 class="result-h">Affect</h3>
+            <div class="affect-body">
+              <span class="affect-coloring" id="affect-coloring">—</span>
+              <span class="affect-conf" id="affect-conf"></span>
+            </div>
+            <p class="affect-interp" id="affect-interp"></p>
+          </article>
+
+          <article class="result-card result-emphasis">
+            <h3 class="result-h">Emphasis</h3>
+            <ul class="emphasis-list" id="emphasis-list" role="list"></ul>
+          </article>
+
+          <article class="result-card result-flags">
+            <h3 class="result-h">Evidence flags</h3>
+            <ul class="flags-list" id="flags-list" role="list"></ul>
+          </article>
+
+          <article class="result-card result-delivery">
+            <h3 class="result-h">Delivery</h3>
+            <dl class="delivery-list" id="delivery-list"></dl>
+          </article>
+        </div>
+
+        <div class="block-out">
+          <div class="block-out-head">
+            <span class="field-label">Enriched prompt <span class="field-source">vocal-context block + your text</span></span>
+            <button id="copy-btn" class="copy-btn" type="button">
+              <span class="copy-icon" aria-hidden="true"></span>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <pre class="block-out-pre" id="block-out" tabindex="0"></pre>
+          <p class="block-out-note">Paste this above your message to any assistant — it reasons over the cues, then your words.</p>
+        </div>
+      </div>
+
+      <div class="tool-error" id="tool-error" hidden role="alert"></div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── Privacy ───────────────────────── -->
+  <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+    <h2 id="privacy-title">Your voice never leaves this tab.</h2>
+    <p>
+      Capture, transcription, signal processing, and the contract are all computed in your browser.
+      There is no server to send audio to. The same analysis engine ships in the command-line tool,
+      the editor adapters, and the native app — this page is just the front door.
+    </p>
+    <ul class="privacy-points" role="list">
+      <li><span aria-hidden="true">∅</span> No upload — audio stays in memory</li>
+      <li><span aria-hidden="true">∅</span> No API key, no account</li>
+      <li><span aria-hidden="true">∅</span> No bundled model weights</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <p class="foot-tag">
+    <span class="foot-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    A prosody evidence layer for assistants that should listen better.
+  </p>
+  <p class="foot-by">Built by Suraj Kuncham &amp; Manish Sampathirao · source-available for noncommercial use</p>
+  <p class="foot-fine">Live transcription works best in Chrome &amp; Edge. Everywhere else, type your transcript — the delivery still gets read from your recording.</p>
+</footer>
+
+<script type="module" src="./app.js"></script>

@@ -1024,7 +1024,12 @@ test("adapter installer writes concrete host config and runnable copied hooks", 
     join(hotkeyTarget, "adapters", "hotkey", "hammerspoon-subtext.generated.lua"),
     "utf8"
   );
-  assert.match(generatedHotkey, new RegExp(escapeRegExp(bin)));
+  // Path-separator agnostic: on Windows the generated Lua escapes "\" as "\\",
+  // so assert the config invokes the subtext.js CLI via the bounded ptt turn
+  // rather than matching the OS-specific absolute path.
+  assert.match(generatedHotkey, /subtext\.js/);
+  assert.match(generatedHotkey, /"ptt"/);
+  assert.match(generatedHotkey, /"--turns"/);
   assert.match(generatedHotkey, /hs\.hotkey\.bind/);
   assert.match(generatedHotkey, /host-transcript --json \{audio\}/);
 
@@ -1065,6 +1070,7 @@ function run(command, args, options = {}) {
     const child = spawn(command, args, {
       cwd: root,
       stdio: ["pipe", "pipe", "pipe"],
+      shell: process.platform === "win32" && command === "npm",
       env: { ...process.env, ...(options.env ?? {}) }
     });
     let stdout = "";

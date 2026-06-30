@@ -5,18 +5,21 @@
 <h1 align="center">Yell-at-AI / Subtext</h1>
 
 <p align="center">
-  <strong>Help AI understand what you mean and the emotion of your natural speech.</strong><br>
-  Not just the plain text transcript.
+  <strong>The meaning and emotion layer for dictation.</strong><br>
+  Like Whisprflow for fast dictation everywhere - but it also understands <em>how</em> you said it.
 </p>
 
 <p align="center">
-  <a href="#quick-start"><img alt="Quick start" src="https://img.shields.io/badge/quick_start-npm_run_check-2dd4bf?style=for-the-badge"></a>
+  <a href="#30-second-try-it"><img alt="Try it" src="https://img.shields.io/badge/try_it-30_seconds-2dd4bf?style=for-the-badge"></a>
+  <a href="#install"><img alt="Install" src="https://img.shields.io/badge/install-npx_yell--at--ai-8b5cf6?style=for-the-badge"></a>
   <a href="docs/CONTRACT.md"><img alt="Schema" src="https://img.shields.io/badge/schema-vocalcontext%2Fv1-60a5fa?style=for-the-badge"></a>
-  <a href="docs/TESTING.md"><img alt="Tests" src="https://img.shields.io/badge/tests-52_passing-22c55e?style=for-the-badge"></a>
+  <a href="docs/TESTING.md"><img alt="Tests" src="https://img.shields.io/badge/tests-64_passing-22c55e?style=for-the-badge"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-noncommercial_source-f59e0b?style=for-the-badge"></a>
 </p>
 
 <p align="center">
+  <a href="docs/QUICKSTART.md">Quickstart</a>
+  ·
   <a href="docs/BLUEPRINT.md">Blueprint</a>
   ·
   <a href="docs/ARCHITECTURE.md">Architecture</a>
@@ -54,15 +57,32 @@
 
 ---
 
-## Why This Exists
+## What It Is
 
-Most coding assistants hear your words but miss your meaning. Natural speech gets flattened into plain text, and emotion, emphasis, hesitation, urgency, uncertainty, and intent vanish before the model ever responds.
+Dictation tools are great at turning your voice into words. They throw away everything else: the word
+you leaned on, the question in your tone, the urgency, the hesitation. Your assistant only ever sees a
+flat transcript, so it answers the words, not what you meant.
 
-Subtext restores that missing layer. It lets AI understand what you mean and the emotion of your natural speech by running lightweight on-device signal processing, emitting a strict `vocalcontext/v1` block with grounded meaning/emotion cues, and letting the assistant you already use do the reasoning.
+**Subtext is the meaning and emotion layer for dictation.** Think of the fast dictation-everywhere
+experience you already like - then add a layer that understands *how* you said it. It runs lightweight
+signal processing on the audio of your turn, on your machine, and emits a strict `vocalcontext/v1`
+evidence block beside the transcript. The assistant you already use does the reasoning; Subtext just
+hands it the evidence it was missing.
 
-> Subtext's value prop is simple: AI should understand what you mean and the emotion of your natural speech, not just the plain text transcript. Prosody is the evidence layer that makes that promise inspectable.
+```text
+"ship the WHOLE thing"     ->   transcript: "ship the whole thing"
+                                + vocal-context: emphasis on "whole" (z=1.23),
+                                  emphatic delivery -> treat "whole" as a constraint
+```
 
-The transcript still comes from the platform's native voice model, OS dictation, browser dictation, or your chosen host. Subtext adds the missing natural-speech context beside that transcript so the assistant can reason over what was meant, not only what was written down.
+> The promise is simple: your AI should understand what you mean and the emotion of your natural
+> speech, not just the plain text transcript. Prosody is the evidence layer that makes that promise
+> inspectable.
+
+The transcript still comes from the platform's native voice model, OS dictation, browser dictation,
+whisper, or your chosen host. Subtext never replaces speech recognition - it adds the missing
+natural-speech context beside the transcript so the assistant can reason over what was meant, not only
+what was written down. Nothing is sent over the network: it is model-free, offline, and zero-dependency.
 
 ## What It Reads
 
@@ -88,45 +108,89 @@ The transcript still comes from the platform's native voice model, OS dictation,
 | `uncertainty` | rising terminal pitch on non-question text |
 | `urgency` | fast, high-energy delivery with few pauses |
 
-## Current Status
+## 30-second try-it
 
-M0 is functional as an offline reference implementation:
+**In the browser** - no install. Open the web demo, allow the mic, and speak a line with one word
+leaned on. You will see the live transcript plus the vocal-context Subtext reads from your delivery,
+all client-side (your audio never leaves the page):
 
-- pure Node.js, no native compile step
-- no bundled model weights
-- no GPU
-- no API key
-- no default network egress
-- CLI, HTTP server, and MCP-style JSON-RPC server
-- local browser microphone preview
-- bounded local desktop capture with `subtext capture`
-- natural-speech sessions with `subtext session`, where a host/native transcript command can provide text, confidence, language, and word timings while Subtext provides the emotion and meaning layer from audio
-- a formal `subtext/transcript/v1` envelope for platform/native voice-model transcript text, confidence, language, and word timings
-- local push-to-talk loops with `subtext ptt` for repeated natural-speech turns into a chosen target
-- optional browser dictation in the preview, emitted as `subtext/transcript/v1` with source/language/confidence when supported
-- personal baseline calibration for naturally loud, fast, pausy, or expressive speakers
-- rolling baseline updates across sessions and microphone positions
-- named calibration profiles for different microphones or environments
-- optional host word timestamps for native voice-model alignment
-- browser microphone selection with device-aware profile switching
-- Codex, Claude Code, and VS Code adapter templates, with native transcript envelope support in the Claude and VS Code boundaries
-- local Hammerspoon global-hotkey bridge template for bounded capture-and-paste turns
-- native desktop Tauri/Rust scaffold for the signed app launch track
-- installable local adapter bundles with generated host config
-- generated WAV fixtures, unit tests, functional tests, smoke tests, benchmark, and LLM-judge prompt pack
+> **Web demo:** fully client-side (your audio never leaves the page). Try it locally from [`apps/web`](apps/web), or deploy it to Vercel in one step — see [apps/web/README.md](apps/web/README.md).
 
-The production target remains a smaller Rust/Tauri core. This repo is the executable reference and test oracle.
+**From the terminal** - run it on a bundled sample with no setup:
+
+```sh
+npx yell-at-ai analyze \
+  --audio eval/fixtures/emphasis.wav \
+  --text "ship the whole thing" \
+  --format prompt
+```
+
+You get the transcript with a grounded evidence block prepended:
+
+```text
+<vocal-context schema="vocalcontext/v1">
+Emphasis: whole z=1.23
+Delivery: slow rate, medium energy, wide pitch range, low pause density, falling terminal pitch, steady voice quality
+Affect: emphatic (0.62): Emphatic delivery; preserve stressed words as intentional constraints or priorities.
+Guidance: preserve_emphasis/focused: Preserve stressed words as likely constraints or priorities: whole.
+Flags: emphasis (0.62): strong stress on "whole"
+</vocal-context>
+
+ship the whole thing
+```
+
+## Install
+
+Zero runtime dependencies. Run it on demand with `npx`, or install the CLI globally - both `yell-at-ai`
+and `subtext` resolve to the same tool:
+
+```sh
+# run once, no install
+npx yell-at-ai doctor
+
+# or install globally
+npm install -g @subtext/yell-at-ai
+yell-at-ai analyze --audio turn.wav --text "..." --format prompt
+```
+
+It needs only Node.js >= 20: no native compile step, no bundled model weights, no GPU, no API key, and
+no default network egress. New to it? Start with the [Quickstart](docs/QUICKSTART.md) for web, CLI, and
+the Claude Code / Codex / VS Code editor adapters.
+
+## Status
+
+An honest cut of what is shipped versus what is a working foundation today.
+
+| Surface | State | Notes |
+| --- | --- | --- |
+| Prosody engine (`vocalcontext/v1`) | 🟢 shipped | model-free DSP, alignment, affect, flags; offline; cross-platform green on Windows, macOS, Linux |
+| CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
+| Web demo | 🟢 shipped | mic -> live dictation -> client-side `vocalcontext/v1` -> enriched prompt; static app in `apps/web/`, one-step Vercel deploy |
+| Editor adapters (Claude Code, Codex, VS Code) | 🟢 shipped | one-command bundles with generated host config |
+| HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
+| Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |
+| Offline whisper STT adapter | 🟡 working foundation | pluggable `whisper` adapter with binary auto-detect + docs; multi-platform binary bundling and model auto-download are follow-ups |
+
+The production target remains a smaller Rust/Tauri core. This repo is the executable reference and test
+oracle: the engine that every surface reuses.
 
 ## Quick Start
 
-```sh
-npm run check
+Run the targeted check, then analyze a turn (the CLI is `yell-at-ai`, also aliased as `subtext`; in a
+checkout you can call `node bin/subtext.js` directly):
 
+```sh
 node bin/subtext.js analyze \
   --audio eval/fixtures/emphasis.wav \
   --text "can we just refactor the whole auth module" \
   --format prompt \
   --verbosity full
+```
+
+Local microphone preview - open `http://127.0.0.1:8765` after starting the server:
+
+```sh
+node bin/subtext.js serve
 ```
 
 When your host voice layer exposes word timestamps, pass them as JSON to replace proportional fallback alignment:
@@ -136,13 +200,7 @@ node bin/subtext.js analyze --audio turn.wav --text "..." --word-timings word-ti
 node bin/subtext.js analyze --audio turn.wav --transcript native-transcript.json --require-word-timings
 ```
 
-Local microphone preview:
-
-```sh
-node bin/subtext.js serve
-```
-
-Then open `http://127.0.0.1:8765`.
+## More You Can Do
 
 Desktop capture:
 
@@ -186,24 +244,6 @@ Universal paste-anywhere handoff:
 ```sh
 node bin/subtext.js handoff --audio turn.wav --text "..." --target clipboard
 node bin/subtext.js handoff --audio turn.wav --text "..." --target paste
-```
-
-Example output:
-
-```text
-<vocal-context schema="vocalcontext/v1">
-Text: can we just refactor the whole auth module
-Transcript: cli_text word_timestamps=false
-Emphasis: whole z=1.34
-Delivery: normal rate, medium energy, wide pitch range, low pause density, falling terminal pitch, steady voice quality
-Affect: emphatic (0.63): Emphatic delivery; preserve stressed words as intentional constraints or priorities.
-Guidance: preserve_emphasis/focused: Preserve stressed words as likely constraints or priorities: whole.
-Flags: emphasis (0.63): strong stress on "whole"
-Alignment: proportional confidence=0.55 matched=0/8
-Calibration: utterance, samples=1
-</vocal-context>
-
-can we just refactor the whole auth module
 ```
 
 ## Project Map
@@ -254,7 +294,7 @@ npm run eval:judge:mock # offline executable host-model judge report
 Latest local verification:
 
 ```text
-53/53 tests passing
+64/64 tests passing
 20/20 functional plugin-boundary tests passing
 p95 latency: 32.161 ms, budget: 300 ms
 package dry-run: 125 files
@@ -296,6 +336,8 @@ See [docs/NATIVE_TRANSCRIPT_BRIDGE.md](docs/NATIVE_TRANSCRIPT_BRIDGE.md) for the
 See [docs/UNIVERSAL_HANDOFF.md](docs/UNIVERSAL_HANDOFF.md) for paste-anywhere delivery.
 
 See [docs/NATIVE_DESKTOP.md](docs/NATIVE_DESKTOP.md) for the Tauri/Rust desktop scaffold.
+
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for the fastest path in: web demo, CLI, and editor adapters.
 
 ## Authors And Attribution
 

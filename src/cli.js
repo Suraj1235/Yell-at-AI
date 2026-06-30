@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildBaselineFromFiles, mergeBaselines } from "./calibration/baseline.js";
@@ -22,6 +21,7 @@ import { pasteIntoActiveApp } from "./handoff/paste.js";
 import { renderVocalContext } from "./render/text.js";
 import { startHttpServer } from "./server/http.js";
 import { startMcpServer } from "./server/mcp.js";
+import { transcribeWithCommand } from "./transcribe/command.js";
 import { normalizeTranscriptEnvelope, parseTranscriptPayload } from "./transcript/envelope.js";
 
 export async function runCli(argv = []) {
@@ -368,11 +368,11 @@ async function transcriptFromArgs(args, textSource, audioPath = null, turn = nul
   }
 
   if (args["transcript-command"]) {
-    const raw = (await runTranscriptCommand(args["transcript-command"], {
-      audio: audioPath ?? "",
-      turn: turn ?? ""
-    })).trim();
-    return parseTranscriptPayload(raw, transcriptOverrides(args, "host_transcript_command"));
+    return transcribeWithCommand({
+      command: args["transcript-command"],
+      replacements: { audio: audioPath ?? "", turn: turn ?? "" },
+      overrides: transcriptOverrides(args, "host_transcript_command")
+    });
   }
 
   return null;
@@ -385,37 +385,6 @@ function transcriptOverrides(args, fallbackSource) {
     confidence: args["transcript-confidence"],
     language: args.language
   };
-}
-
-function runTranscriptCommand(commandTemplate, replacements) {
-  const command = parseCommand(commandTemplate)
-    .map((part) => replaceTranscriptPlaceholders(part, replacements));
-  if (!command.length) throw new Error("--transcript-command was empty.");
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(command[0], command.slice(1), { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString("utf8");
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString("utf8");
-    });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(stderr || `${command[0]} exited ${code}`));
-    });
-  });
-}
-
-function replaceTranscriptPlaceholders(value, replacements) {
-  return String(value).replace(/\{(audio|audioPath|turn)\}/g, (_, key) => replacements[key] ?? "");
-}
-
-function parseCommand(value) {
-  return String(value).match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, "")) ?? [];
 }
 
 async function deliverOutput(commandName, output, target = null, args = {}, messages = {}) {
