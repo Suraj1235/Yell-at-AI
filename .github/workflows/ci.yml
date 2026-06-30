@@ -5,7 +5,26 @@ on:
   pull_request:
 
 jobs:
-  node:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run smoke
+
+  bench-and-judge:
+    name: bench-and-judge
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,4 +32,5 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npm run check
+      - run: npm run bench
+      - run: npm run eval:judge
