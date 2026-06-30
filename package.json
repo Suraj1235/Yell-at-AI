@@ -1,5 +1,5 @@
 {
-  "name": "@subtext/yell-at-ai",
+  "name": "yell-at-ai",
   "version": "0.1.0",
   "description": "The meaning and emotion layer for dictation. Subtext reads how you said it - emphasis, urgency, hesitation - and hands your AI a grounded vocal-context block beside the transcript. Model-free, offline, zero dependencies.",
   "type": "module",
@@ -62,6 +62,9 @@
   "scripts": {
     "build": "node scripts/build-check.mjs",
     "fixtures": "node scripts/generate-fixtures.mjs",
+    "prepack": "npm run fixtures",
+    "prepublishOnly": "npm run build && npm test",
+    "verify:package": "node scripts/verify-package.mjs",
     "test": "npm run fixtures && node --test",
     "test:functional": "npm run fixtures && node --test test/functional.test.js",
     "bench": "npm run fixtures && node bench/latency.mjs",
@@ -101,5 +104,8 @@
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
