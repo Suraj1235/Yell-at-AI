@@ -5,74 +5,50 @@
 <h1 align="center">Yell-at-AI / Subtext</h1>
 
 <p align="center">
-  <strong>The meaning and emotion layer for dictation.</strong><br>
-  Like Whisprflow for fast dictation everywhere - but it also understands <em>how</em> you said it.
+  <strong>Help your AI understand what you <em>mean</em> and the emotion of your natural speech.</strong><br>
+  Not just the plain text transcript.
 </p>
 
 <p align="center">
-  <a href="#30-second-try-it"><img alt="Try it" src="https://img.shields.io/badge/try_it-30_seconds-2dd4bf?style=for-the-badge"></a>
+  <a href="#try-it-in-30-seconds"><img alt="Try it" src="https://img.shields.io/badge/try_it-30_seconds-2dd4bf?style=for-the-badge"></a>
   <a href="#install"><img alt="Install" src="https://img.shields.io/badge/install-npx_yell--at--ai-8b5cf6?style=for-the-badge"></a>
   <a href="docs/CONTRACT.md"><img alt="Schema" src="https://img.shields.io/badge/schema-vocalcontext%2Fv1-60a5fa?style=for-the-badge"></a>
-  <a href="docs/TESTING.md"><img alt="Tests" src="https://img.shields.io/badge/tests-64_passing-22c55e?style=for-the-badge"></a>
+  <a href="docs/TESTING.md"><img alt="Tests" src="https://img.shields.io/badge/tests-72_passing-22c55e?style=for-the-badge"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-noncommercial_source-f59e0b?style=for-the-badge"></a>
 </p>
 
 <p align="center">
   <a href="docs/QUICKSTART.md">Quickstart</a>
   ·
-  <a href="docs/BLUEPRINT.md">Blueprint</a>
-  ·
   <a href="docs/ARCHITECTURE.md">Architecture</a>
   ·
   <a href="docs/CONTRACT.md">Contract</a>
   ·
-  <a href="docs/PROSODY_STYLE_TOKENS.md">Style Tokens</a>
+  <a href="docs/CALIBRATION.md">Calibration</a>
   ·
   <a href="docs/HARNESSES.md">Harnesses</a>
   ·
-  <a href="docs/DESKTOP_CAPTURE.md">Desktop Capture</a>
-  ·
   <a href="docs/NATIVE_DESKTOP.md">Native Desktop</a>
   ·
-  <a href="docs/HARNESS_DOCTOR.md">Doctor</a>
-  ·
-  <a href="docs/HARNESS_CONFORMANCE.md">Conformance</a>
-  ·
-  <a href="docs/ADAPTER_PACKAGING.md">Adapter Packages</a>
-  ·
-  <a href="docs/CALIBRATION.md">Calibration</a>
-  ·
-  <a href="docs/NATURAL_SPEECH.md">Natural Speech</a>
-  ·
-  <a href="docs/NATIVE_TRANSCRIPT_BRIDGE.md">Native Transcript Bridge</a>
-  ·
-  <a href="docs/UNIVERSAL_HANDOFF.md">Universal Handoff</a>
-  ·
   <a href="docs/TESTING.md">Testing</a>
-  ·
-  <a href="docs/EXTERNAL_EMOTION_EVAL.md">External Eval</a>
-  ·
-  <a href="docs/WILD_YOUTUBE_EVAL.md">Wild YouTube Eval</a>
 </p>
 
 ---
 
 ## What It Is
 
-Dictation tools are great at turning your voice into words. They throw away everything else: the word
-you leaned on, the question in your tone, the urgency, the hesitation. Your assistant only ever sees a
-flat transcript, so it answers the words, not what you meant.
+Coding assistants hear your words but miss your meaning. Natural speech gets flattened into plain text,
+and the word you leaned on, the question in your tone, the urgency, the hesitation — all of it vanishes
+before the model ever responds. Your assistant answers the words, not what you meant.
 
-**Subtext is the meaning and emotion layer for dictation.** Think of the fast dictation-everywhere
-experience you already like - then add a layer that understands *how* you said it. It runs lightweight
-signal processing on the audio of your turn, on your machine, and emits a strict `vocalcontext/v1`
-evidence block beside the transcript. The assistant you already use does the reasoning; Subtext just
-hands it the evidence it was missing.
+**Subtext restores that missing layer.** It runs lightweight signal processing on the audio of your
+turn, on your machine, and emits a strict `vocalcontext/v1` evidence block beside the transcript. The
+assistant you already use does the reasoning; Subtext just hands it the evidence it was missing.
 
 ```text
-"ship the WHOLE thing"     ->   transcript: "ship the whole thing"
-                                + vocal-context: emphasis on "whole" (z=1.23),
-                                  emphatic delivery -> treat "whole" as a constraint
+"ship the WHOLE thing"   →   transcript: "ship the whole thing"
+                             + vocal-context: emphasis on "whole" (z=1.23),
+                               emphatic delivery → treat "whole" as a constraint
 ```
 
 > The promise is simple: your AI should understand what you mean and the emotion of your natural
@@ -80,7 +56,7 @@ hands it the evidence it was missing.
 > inspectable.
 
 The transcript still comes from the platform's native voice model, OS dictation, browser dictation,
-whisper, or your chosen host. Subtext never replaces speech recognition - it adds the missing
+whisper, or your chosen host. Subtext never replaces speech recognition — it adds the missing
 natural-speech context beside the transcript so the assistant can reason over what was meant, not only
 what was written down. Nothing is sent over the network: it is model-free, offline, and zero-dependency.
 
@@ -108,15 +84,16 @@ what was written down. Nothing is sent over the network: it is model-free, offli
 | `uncertainty` | rising terminal pitch on non-question text |
 | `urgency` | fast, high-energy delivery with few pauses |
 
-## 30-second try-it
+## Try it in 30 seconds
 
-**In the browser** - no install. Open the web demo, allow the mic, and speak a line with one word
-leaned on. You will see the live transcript plus the vocal-context Subtext reads from your delivery,
-all client-side (your audio never leaves the page):
+**In the browser** — no install. Open the web demo, allow the mic, and speak a line with one word
+leaned on. You see the live transcript plus the vocal-context Subtext reads from your delivery, all
+client-side — your audio never leaves the page.
 
-> **Web demo:** fully client-side (your audio never leaves the page). Try it locally from [`apps/web`](apps/web), or deploy it to Vercel in one step — see [apps/web/README.md](apps/web/README.md).
+> **Web demo:** fully client-side. Run it locally from [`apps/web`](apps/web), or deploy it to Vercel
+> in one step — see [apps/web/README.md](apps/web/README.md).
 
-**From the terminal** - run it on a bundled sample with no setup:
+**From the terminal** — run it on a bundled sample with no setup:
 
 ```sh
 npx yell-at-ai analyze \
@@ -141,7 +118,7 @@ ship the whole thing
 
 ## Install
 
-Zero runtime dependencies. Run it on demand with `npx`, or install the CLI globally - both `yell-at-ai`
+Zero runtime dependencies. Run it on demand with `npx`, or install the CLI globally — both `yell-at-ai`
 and `subtext` resolve to the same tool:
 
 ```sh
@@ -154,7 +131,7 @@ yell-at-ai analyze --audio turn.wav --text "..." --format prompt
 ```
 
 It needs only Node.js >= 20: no native compile step, no bundled model weights, no GPU, no API key, and
-no default network egress. New to it? Start with the [Quickstart](docs/QUICKSTART.md) for web, CLI, and
+no default network egress. New here? Start with the [Quickstart](docs/QUICKSTART.md) for web, CLI, and
 the Claude Code / Codex / VS Code editor adapters.
 
 > **Tip — calibrate once for the best reads.** Uncalibrated analysis uses fixed thresholds that assume
@@ -171,7 +148,7 @@ An honest cut of what is shipped versus what is a working foundation today.
 | --- | --- | --- |
 | Prosody engine (`vocalcontext/v1`) | 🟢 shipped | model-free DSP, alignment, affect, flags; offline; cross-platform green on Windows, macOS, Linux |
 | CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
-| Web demo | 🟢 shipped | mic -> live dictation -> client-side `vocalcontext/v1` -> enriched prompt; static app in `apps/web/`, one-step Vercel deploy |
+| Web demo | 🟢 shipped | mic → live dictation → client-side `vocalcontext/v1` → enriched prompt; static app in `apps/web/`, one-step Vercel deploy |
 | Editor adapters (Claude Code, Codex, VS Code) | 🟢 shipped | one-command bundles with generated host config |
 | HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
 | Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |
@@ -180,10 +157,10 @@ An honest cut of what is shipped versus what is a working foundation today.
 The production target remains a smaller Rust/Tauri core. This repo is the executable reference and test
 oracle: the engine that every surface reuses.
 
-## Quick Start
+<details>
+<summary><strong>More commands &amp; usage</strong> — capture, session, push-to-talk, calibration, handoff</summary>
 
-Run the targeted check, then analyze a turn (the CLI is `yell-at-ai`, also aliased as `subtext`; in a
-checkout you can call `node bin/subtext.js` directly):
+Analyze a turn with full detail, or open the local microphone preview at `http://127.0.0.1:8765`:
 
 ```sh
 node bin/subtext.js analyze \
@@ -191,11 +168,7 @@ node bin/subtext.js analyze \
   --text "can we just refactor the whole auth module" \
   --format prompt \
   --verbosity full
-```
 
-Local microphone preview - open `http://127.0.0.1:8765` after starting the server:
-
-```sh
 node bin/subtext.js serve
 ```
 
@@ -205,8 +178,6 @@ When your host voice layer exposes word timestamps, pass them as JSON to replace
 node bin/subtext.js analyze --audio turn.wav --text "..." --word-timings word-timings.json
 node bin/subtext.js analyze --audio turn.wav --transcript native-transcript.json --require-word-timings
 ```
-
-## More You Can Do
 
 Desktop capture:
 
@@ -252,23 +223,10 @@ node bin/subtext.js handoff --audio turn.wav --text "..." --target clipboard
 node bin/subtext.js handoff --audio turn.wav --text "..." --target paste
 ```
 
-## Project Map
+</details>
 
-```text
-src/                 model-free DSP, capture, alignment, contract builder, rendering, servers
-schemas/             strict vocalcontext/v1 and subtext/transcript/v1 JSON schemas
-bin/subtext.js       CLI entrypoint
-adapters/            Codex, Claude Code, VS Code, Realtime, hotkey, Universal adapter templates
-apps/desktop/        Tauri/Rust scaffold for the native desktop launch track
-ui/web-preview/      local browser microphone capture and preview harness
-eval/fixtures/       generated WAV fixtures
-eval/llm-judge/      transcript-only vs vocal-context prompt-pack harness
-bench/               latency benchmark
-test/                unit, golden, and functional tests
-docs/                blueprint, architecture, contract, testing, licensing, roadmap
-```
-
-## Commands
+<details>
+<summary><strong>Full command &amp; script reference</strong></summary>
 
 ```sh
 npm run build           # dry-run package validation
@@ -289,10 +247,6 @@ node bin/subtext.js install-adapter --harness codex --target ./subtext-codex-ada
 node bin/subtext.js install-adapter --harness hotkey --target ./subtext-hotkey-adapter
 node bin/subtext.js install-adapter --harness native-desktop --target ./subtext-desktop-scaffold
 node bin/subtext.js profile list # list named calibration profiles
-node bin/subtext.js capture --duration 4 --audio-out turn.wav
-node bin/subtext.js capture --duration 4 --text "..." --target paste
-node bin/subtext.js session --duration 4 --transcript-command "host-transcript {audio}" --target paste
-node bin/subtext.js ptt --turns 3 --duration 4 --transcript-command "host-transcript --json {audio}" --target paste
 npm run check           # build, tests, benchmark, smoke, and judge prompt pack
 npm run eval:judge:mock # offline executable host-model judge report
 ```
@@ -315,35 +269,47 @@ readiness: full check + yelling/emphasis/confusion guidance probes passing
 
 The complete matrix is documented in [docs/TESTING.md](docs/TESTING.md).
 
+</details>
+
 ## Integration Modes
 
 | Tier | Platform Exposes | Subtext Does |
 | --- | --- | --- |
-| A, steer | native audio-in LLM | provide steering instructions and the contract shape |
-| B, enrich | STT-to-text only | analyze audio in parallel and prepend `vocalcontext/v1` |
-| C, own | any text field | own capture + preview + clipboard/active-app paste + local hotkey template + native desktop scaffold now; signed native global hotkey remains future work |
+| A · steer | native audio-in LLM | provide steering instructions and the contract shape |
+| B · enrich | STT-to-text only | analyze audio in parallel and prepend `vocalcontext/v1` |
+| C · own | any text field | own capture + preview + clipboard/active-app paste + local hotkey template + native desktop scaffold now; signed native global hotkey remains future work |
 
 The same contract is used across all tiers.
 
-See [docs/HARNESSES.md](docs/HARNESSES.md) and [adapters/harnesses.json](adapters/harnesses.json) for the current harness catalog.
+## Project Map
 
-See [docs/HARNESS_CONFORMANCE.md](docs/HARNESS_CONFORMANCE.md) for the cross-harness cue-preservation gate.
+```text
+src/                 model-free DSP, capture, alignment, contract builder, rendering, servers
+schemas/             strict vocalcontext/v1 and subtext/transcript/v1 JSON schemas
+bin/subtext.js       CLI entrypoint
+adapters/            Codex, Claude Code, VS Code, Realtime, hotkey, Universal adapter templates
+apps/web/            deployable client-side web demo
+apps/desktop/        Tauri/Rust scaffold for the native desktop launch track
+ui/web-preview/      local browser microphone capture and preview harness
+eval/fixtures/       generated WAV fixtures
+eval/llm-judge/      transcript-only vs vocal-context prompt-pack harness
+bench/               latency benchmark
+test/                unit, golden, and functional tests
+docs/                blueprint, architecture, contract, testing, licensing, roadmap
+```
 
-See [docs/ADAPTER_PACKAGING.md](docs/ADAPTER_PACKAGING.md) for reproducible local adapter bundles.
+<details>
+<summary><strong>Documentation</strong> — the full guide index</summary>
 
-Use `subtext install-adapter` to copy a harness bundle into a target directory with concrete generated config for this checkout.
+- [Quickstart](docs/QUICKSTART.md) — fastest path in: web demo, CLI, editor adapters
+- [Blueprint](docs/BLUEPRINT.md) · [Architecture](docs/ARCHITECTURE.md) · [Contract](docs/CONTRACT.md) · [Prosody Style Tokens](docs/PROSODY_STYLE_TOKENS.md)
+- [Harnesses](docs/HARNESSES.md) · [Harness Doctor](docs/HARNESS_DOCTOR.md) · [Harness Conformance](docs/HARNESS_CONFORMANCE.md) · [Adapter Packaging](docs/ADAPTER_PACKAGING.md)
+- [Calibration](docs/CALIBRATION.md) · [Natural Speech](docs/NATURAL_SPEECH.md) · [Native Transcript Bridge](docs/NATIVE_TRANSCRIPT_BRIDGE.md) · [Universal Handoff](docs/UNIVERSAL_HANDOFF.md)
+- [Desktop Capture](docs/DESKTOP_CAPTURE.md) · [Native Desktop](docs/NATIVE_DESKTOP.md) · [Web Preview](docs/WEB_PREVIEW.md)
+- [Testing](docs/TESTING.md) · [External Emotion Eval](docs/EXTERNAL_EMOTION_EVAL.md) · [Wild YouTube Eval](docs/WILD_YOUTUBE_EVAL.md)
+- `subtext install-adapter` copies a harness bundle into a target directory with concrete generated config for this checkout.
 
-See [docs/CALIBRATION.md](docs/CALIBRATION.md) for personal baseline setup, rolling updates, and named profiles.
-
-See [docs/NATURAL_SPEECH.md](docs/NATURAL_SPEECH.md) for the audio-plus-transcript path.
-
-See [docs/NATIVE_TRANSCRIPT_BRIDGE.md](docs/NATIVE_TRANSCRIPT_BRIDGE.md) for the native transcript envelope that lets Subtext add meaning and emotion without replacing host speech recognition.
-
-See [docs/UNIVERSAL_HANDOFF.md](docs/UNIVERSAL_HANDOFF.md) for paste-anywhere delivery.
-
-See [docs/NATIVE_DESKTOP.md](docs/NATIVE_DESKTOP.md) for the Tauri/Rust desktop scaffold.
-
-See [docs/QUICKSTART.md](docs/QUICKSTART.md) for the fastest path in: web demo, CLI, and editor adapters.
+</details>
 
 ## Authors And Attribution
 
