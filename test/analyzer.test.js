@@ -1,46 +1,47 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { analyzeFile, buildBaselineFromFiles, mergeBaselines, renderVocalContext } from "../src/index.js";
 
 const fixtures = {
   neutral: {
-    audio: new URL("../eval/fixtures/neutral.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/neutral.wav", import.meta.url)),
     text: "can we refactor the auth module"
   },
   framedNeutral: {
-    audio: new URL("../eval/fixtures/framed-neutral.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/framed-neutral.wav", import.meta.url)),
     text: "don't forget a jacket"
   },
   pausyNeutral: {
-    audio: new URL("../eval/fixtures/pausy-neutral.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/pausy-neutral.wav", import.meta.url)),
     text: "can we inspect the auth module"
   },
   expressiveNeutral: {
-    audio: new URL("../eval/fixtures/expressive-neutral.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/expressive-neutral.wav", import.meta.url)),
     text: "can we inspect the auth module"
   },
   urgency: {
-    audio: new URL("../eval/fixtures/urgency.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/urgency.wav", import.meta.url)),
     text: "can we ship this now please"
   },
   yelling: {
-    audio: new URL("../eval/fixtures/yelling.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/yelling.wav", import.meta.url)),
     text: "stop rewriting the whole auth module"
   },
   hesitation: {
-    audio: new URL("../eval/fixtures/hesitation.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/hesitation.wav", import.meta.url)),
     text: "um can we maybe change the auth module"
   },
   confusion: {
-    audio: new URL("../eval/fixtures/confusion.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/confusion.wav", import.meta.url)),
     text: "wait um i am not sure which auth flow broke?"
   },
   emphasis: {
-    audio: new URL("../eval/fixtures/emphasis.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/emphasis.wav", import.meta.url)),
     text: "can we just refactor the whole auth module"
   },
   mismatch: {
-    audio: new URL("../eval/fixtures/mismatch.wav", import.meta.url).pathname,
+    audio: fileURLToPath(new URL("../eval/fixtures/mismatch.wav", import.meta.url)),
     text: "yeah this is totally fine"
   }
 };

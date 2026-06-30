@@ -81,7 +81,7 @@ process.stdout.write(JSON.stringify({
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], shell: process.platform === "win32" });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => {

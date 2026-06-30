@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { analyzeFile } from "../src/index.js";
 
@@ -28,7 +29,7 @@ test("subtext/transcript/v1 schema documents the native voice bridge", () => {
 
 test("analyzer output conforms to the required schema shape", async () => {
   const contract = await analyzeFile(
-    new URL("../eval/fixtures/emphasis.wav", import.meta.url).pathname,
+    fileURLToPath(new URL("../eval/fixtures/emphasis.wav", import.meta.url)),
     "can we just refactor the whole auth module"
   );
 

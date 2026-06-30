@@ -1,4 +1,3 @@
-import { readWavFile } from "../audio/wav.js";
 import { alignWordsProportionally } from "../alignment/proportional.js";
 import { alignWordsFromTimings } from "../alignment/word-timings.js";
 import { isBaseline } from "../calibration/baseline.js";
@@ -9,6 +8,7 @@ import { CONFUSION_WORDS, FILLED_PAUSES, NEGATIVE_WORDS, POSITIVE_WORDS, SOFTENE
 const SCHEMA = "vocalcontext/v1";
 
 export async function analyzeFile(audioPath, text, options = {}) {
+  const { readWavFile } = await import("../audio/wav.js"); // lazy: keeps this module browser-safe
   const wav = await readWavFile(audioPath);
   return analyzeSamples({
     samples: wav.samples,
