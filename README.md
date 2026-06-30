@@ -300,7 +300,7 @@ npm run eval:judge:mock # offline executable host-model judge report
 Latest local verification:
 
 ```text
-64/64 tests passing
+72/72 tests passing
 20/20 functional plugin-boundary tests passing
 p95 latency: 32.161 ms, budget: 300 ms
 package dry-run: 125 files

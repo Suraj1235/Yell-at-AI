@@ -514,7 +514,7 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
     });
   }
 
-  if (isUncertainRise(text, prosody, wordMetrics, filledPauseCount, softenerCount, confusionMarkerCount)) {
+  if (isUncertainRise(text, prosody, filledPauseCount, softenerCount, confusionMarkerCount)) {
     flags.push({
       type: "uncertainty",
       evidence: "rising terminal pitch on a non-question transcript",
@@ -617,7 +617,7 @@ function isConfused(text, prosody, filledPauseCount, softenerCount, confusionMar
   return questionLike && uncertainDelivery;
 }
 
-function isUncertainRise(text, prosody, wordMetrics, filledPauseCount, softenerCount, confusionMarkerCount) {
+function isUncertainRise(text, prosody, filledPauseCount, softenerCount, confusionMarkerCount) {
   if (prosody.terminalPitch !== "rising" || /[?]\s*$/.test(text.trim())) return false;
   // Rising terminal pitch on a non-question is only weak evidence; require a real
   // uncertainty signal (filled pause, softener, confusion marker, or high pause density)
