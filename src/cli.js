@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildBaselineFromFiles, mergeBaselines } from "./calibration/baseline.js";
 import {
   defaultProfileStorePath,
@@ -183,12 +185,17 @@ export async function runCli(argv = []) {
       return;
     }
 
+    if (command === "version" || command === "--version" || command === "-v") {
+      process.stdout.write(`${packageVersion()}\n`);
+      return;
+    }
+
     if (command === "help" || command === "--help" || command === "-h") {
       process.stdout.write(helpText());
       return;
     }
 
-    throw new Error(`Unknown command: ${command}`);
+    throw new Error(`Unknown command: ${command}. Run 'subtext --help' to see available commands.`);
   } catch (error) {
     process.stderr.write(`subtext: ${error.message}\n`);
     process.exitCode = 1;
@@ -224,10 +231,47 @@ function readStdin() {
   });
 }
 
+function packageVersion() {
+  const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+  return JSON.parse(readFileSync(pkgPath, "utf8")).version;
+}
+
 function helpText() {
   return `Subtext - meaning and emotion from natural speech for coding assistants
 
 Usage:
+  subtext <command> [options]
+
+Commands:
+  analyze           Analyze a WAV + transcript into a vocalcontext/v1 contract (--format json|prompt)
+  serve             Run the local HTTP analysis server (no audio leaves the machine)
+  capture           Record audio from the mic, then optionally analyze it
+  session           Record one natural-speech turn and emit the enriched prompt
+  ptt               Push-to-talk loop: record, analyze, and deliver multiple turns
+  handoff           Analyze a turn and deliver the enriched prompt (clipboard/paste/stdout/file)
+  calibrate         Build or update a neutral-voice baseline from one or more samples
+  profile           Manage saved calibration profiles (list, show, delete)
+  render            Render a saved vocalcontext/v1 contract into prompt text
+  doctor            Check harness adapter readiness (--harness ... --format text|json)
+  conformance       Verify natural-speech cues and harness policies (--format json|text)
+  install-adapter   Install a harness adapter into a target directory
+  mcp               Run the Model Context Protocol (stdio) server
+  help              Show this help (also --help, -h)
+  version           Show the package version (also --version, -v)
+
+Common flags:
+  --audio <file.wav>            Source audio for analysis
+  --text "<transcript>"         Inline transcript text
+  --transcript <file>           Transcript envelope JSON file
+  --transcript-command "<cmd>"  Host transcription command ({audio} placeholder)
+  --baseline <file>             Neutral-voice baseline JSON
+  --profile <name>              Use a saved calibration profile
+  --format json|prompt|text     Output format (command-dependent)
+  --verbosity raw|subtle|full   Prompt verbosity (default: subtle)
+  --target stdout|clipboard|paste|file   Delivery target for enriched prompts
+  --out <file>                  Write output to a file instead of stdout
+
+Examples:
   subtext analyze --audio turn.wav --text "can we just refactor the whole auth module" [--format json|prompt]
   subtext calibrate --audio neutral.wav --text "this is my normal voice" --out baseline.json
   subtext analyze --audio turn.wav --text "..." --baseline baseline.json
