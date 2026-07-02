@@ -8,6 +8,7 @@
 // real child process.
 import { spawn } from "node:child_process";
 import { parseTranscriptPayload } from "../transcript/envelope.js";
+import { parseCommand } from "../util/command.js";
 
 // Default runner: spawn the command, collect stdout, resolve with raw stdout on
 // exit 0, otherwise reject with stderr (or a generic exit-code error). This is a
@@ -57,6 +58,4 @@ export function replaceTranscriptPlaceholders(value, replacements) {
   return String(value).replace(/\{(audio|audioPath|turn)\}/g, (_, key) => replacements[key] ?? "");
 }
 
-export function parseCommand(value) {
-  return String(value).match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, "")) ?? [];
-}
+export { parseCommand };

@@ -1,5 +1,10 @@
 # Offline Whisper STT
 
+**Status: experimental (library API only — not yet wired into the CLI).** `transcribe()`
+and the `whisper` adapter are importable from the package entrypoint (`import { transcribe }
+from "yell-at-ai"`), but no `subtext` CLI command calls into them yet; today the CLI's own
+speech-to-text path is the `--transcript-command` mechanism described below.
+
 Subtext's job is the meaning-and-emotion layer of natural speech; it does not ship a
 speech recognizer. The `whisper` adapter is one way to produce the transcript half of
 a turn **entirely on your own machine**, by shelling out to a local

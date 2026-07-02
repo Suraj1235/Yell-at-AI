@@ -120,8 +120,9 @@ export async function runCli(argv = []) {
 
     if (command === "render") {
       const args = parseArgs(rest);
-      const raw = args.file ? await readFile(args.file, "utf8") : await readStdin();
-      const contract = JSON.parse(raw);
+      const contract = args.file
+        ? await readJsonFile(args.file, "contract JSON")
+        : JSON.parse(await readStdin());
       process.stdout.write(renderVocalContext(contract, { verbosity: args.verbosity ?? "subtle" }));
       return;
     }
@@ -233,6 +234,17 @@ function readStdin() {
     process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     process.stdin.on("error", reject);
   });
+}
+
+// Read and JSON-parse a user-supplied file, labeling any failure (missing file or
+// malformed JSON) with `label` and `path` so the CLI's top-level error handler
+// prints something actionable instead of a bare "SyntaxError: Unexpected token...".
+async function readJsonFile(path, label) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    throw new Error(`${label} ${path}: ${error.message}`);
+  }
 }
 
 function packageVersion() {
@@ -532,7 +544,7 @@ async function buildCalibrationBaseline(args, newBaseline) {
     const storePath = profileStorePath(args);
     const store = await loadProfileStore(storePath);
     const existingBaseline = args.baseline
-      ? JSON.parse(await readFile(args.baseline, "utf8"))
+      ? await readJsonFile(args.baseline, "baseline JSON")
       : getProfileBaseline(store, args.profile);
     const baseline = existingBaseline ? mergeBaselines(existingBaseline, newBaseline) : newBaseline;
     const nextStore = upsertProfileBaseline(store, {
@@ -546,7 +558,7 @@ async function buildCalibrationBaseline(args, newBaseline) {
   }
 
   return args.baseline
-    ? mergeBaselines(JSON.parse(await readFile(args.baseline, "utf8")), newBaseline)
+    ? mergeBaselines(await readJsonFile(args.baseline, "baseline JSON"), newBaseline)
     : newBaseline;
 }
 
@@ -560,7 +572,7 @@ async function baselineFromArgs(args) {
     if (!baseline) throw new Error(`Profile has no usable baseline: ${args.profile}`);
     return baseline;
   }
-  return args.baseline ? JSON.parse(await readFile(args.baseline, "utf8")) : null;
+  return args.baseline ? await readJsonFile(args.baseline, "baseline JSON") : null;
 }
 
 async function runProfileCommand(rest) {
@@ -622,7 +634,7 @@ async function writeOutputFile(filePath, output) {
 
 async function readCalibrationItems(args) {
   if (args.manifest) {
-    const manifest = JSON.parse(await readFile(args.manifest, "utf8"));
+    const manifest = await readJsonFile(args.manifest, "calibration manifest JSON");
     if (!Array.isArray(manifest)) {
       throw new Error("Calibration manifest must be an array of { audioPath, text } entries.");
     }
@@ -644,8 +656,8 @@ async function wordTimingsFromArgs(args) {
   const value = args["word-timings"] ?? args["word-timestamps"];
   if (!value) return null;
   const text = String(value).trim();
-  const raw = text.startsWith("[") || text.startsWith("{")
-    ? text
-    : await readFile(value, "utf8");
-  return JSON.parse(raw);
+  if (text.startsWith("[") || text.startsWith("{")) {
+    return JSON.parse(text);
+  }
+  return readJsonFile(value, "word timings JSON");
 }

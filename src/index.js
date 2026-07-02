@@ -21,4 +21,5 @@ export { analyzeSamples, analyzeFile } from "./contract/analyzer.js";
 export { renderVocalContext } from "./render/text.js";
 export { startHttpServer } from "./server/http.js";
 export { startMcpServer } from "./server/mcp.js";
+export { ADAPTERS, DEFAULT_ADAPTER, transcribe, transcribeWithCommand, transcribeWithWhisper, resolveWhisperBinary } from "./transcribe/index.js";
 export { normalizeTranscriptEnvelope, parseTranscriptPayload, TRANSCRIPT_SCHEMA } from "./transcript/envelope.js";

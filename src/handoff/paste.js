@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { copyToClipboard } from "./clipboard.js";
+import { parseCommand } from "../util/command.js";
 
 export async function pasteIntoActiveApp(text, options = {}) {
   const clipboard = await copyToClipboard(text, options.clipboardCommand);
@@ -43,10 +44,6 @@ export function defaultPasteCommand() {
     return ["wtype", "-M", "ctrl", "v", "-m", "ctrl"];
   }
   return ["xdotool", "key", "ctrl+v"];
-}
-
-function parseCommand(value) {
-  return String(value).match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, "")) ?? [];
 }
 
 function runCommand(command) {

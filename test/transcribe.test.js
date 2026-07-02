@@ -256,3 +256,13 @@ test("buildWhisperArgs places the audio path last and requests JSON by default",
 test("parseWhisperOutput throws on an empty transcript", () => {
   assert.throws(() => parseWhisperOutput("\n\n"), /empty transcript/);
 });
+
+test("public entrypoint src/index.js re-exports the transcribe surface", async () => {
+  const entrypoint = await import("../src/index.js");
+  assert.equal(entrypoint.transcribe, transcribe);
+  assert.equal(entrypoint.transcribeWithCommand, transcribeWithCommand);
+  assert.equal(entrypoint.transcribeWithWhisper, transcribeWithWhisper);
+  assert.deepEqual(entrypoint.ADAPTERS, ADAPTERS);
+  assert.equal(typeof entrypoint.DEFAULT_ADAPTER, "string");
+  assert.equal(typeof entrypoint.resolveWhisperBinary, "function");
+});

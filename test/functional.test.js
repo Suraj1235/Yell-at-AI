@@ -335,6 +335,28 @@ test("CLI calibrate writes a reusable baseline for analyze", async () => {
   assert.equal(contract.calibration.samples, 2);
 });
 
+test("CLI surfaces a labeled, file-naming error for a malformed --baseline JSON file", async () => {
+  const badBaselinePath = tmpPath("functional-bad-baseline.json");
+  await mkdir(dirname(badBaselinePath), { recursive: true });
+  await writeFile(badBaselinePath, "{oops");
+
+  const { code, stderr } = await runProcess("node", [
+    bin,
+    "analyze",
+    "--audio",
+    audioPath,
+    "--text",
+    text,
+    "--baseline",
+    badBaselinePath
+  ]);
+
+  assert.equal(code, 1);
+  assert.match(stderr, /subtext:/);
+  assert.match(stderr, /baseline JSON/i);
+  assert.match(stderr, new RegExp(escapeRegExp(badBaselinePath)));
+});
+
 test("CLI profile store manages named calibration profiles", async () => {
   const profilesPath = tmpPath("functional-profiles.json");
   await rm(profilesPath, { force: true });
