@@ -26,14 +26,12 @@
     "subtext": "./bin/subtext.js",
     "yell-at-ai": "./bin/subtext.js"
   },
-  "citation": "./CITATION.cff",
   "exports": {
     ".": "./src/index.js"
   },
   "files": [
     "adapters/",
     "apps/",
-    "bench/",
     "bin/",
     "docs/",
     "eval/fixtures/",
@@ -48,7 +46,6 @@
     "schemas/",
     "scripts/",
     "src/",
-    "test/",
     "ui/",
     "CITATION.cff",
     "CODE_OF_CONDUCT.md",

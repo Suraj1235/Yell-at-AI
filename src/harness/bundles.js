@@ -71,7 +71,7 @@ export const BUNDLE_FILES = Object.freeze({
 
 export async function buildAdapterBundles(options = {}) {
   const root = options.root ? resolve(options.root) : ROOT;
-  const outRoot = options.outRoot ? resolve(options.outRoot) : join(root, "dist", "adapters");
+  const outRoot = options.outRoot ? resolve(options.outRoot) : join(process.cwd(), "dist", "adapters");
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const harnesses = await readHarnessCatalog(root);
   const doctor = await runHarnessDoctor({ root });

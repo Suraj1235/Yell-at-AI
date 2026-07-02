@@ -35,6 +35,17 @@ The generated bundles are local release artifacts, not a substitute for host mar
 
 Generated output is ignored by git because it can be reproduced from source.
 
+## Bundle Layout
+
+Each bundle directory nests its files under the *same repo-relative path* they have in this
+checkout — for example `dist/adapters/claude-code/adapters/claude-code/README.md`, not a flattened
+`dist/adapters/claude-code/README.md`. This is intentional, not a bug: a bundle manifest's `files`
+entries are repo-relative paths, and copying a bundle's contents onto a target root reproduces
+exactly what `subtext install-adapter` writes there. Installs preserve the same repo-relative
+layout for the same reason — the Claude Code hook resolves the CLI via a relative
+`../../../bin/subtext.js` hop, which only lines up when the adapter files keep their original
+depth under the target root.
+
 ## Installing A Local Bundle
 
 Use `subtext install-adapter` when you want a concrete, copyable adapter directory for a specific harness:
