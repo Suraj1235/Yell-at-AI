@@ -133,6 +133,10 @@ export async function runCli(argv = []) {
         const address = server.address();
         process.stderr.write(`subtext listening on http://${address.address}:${address.port}\n`);
       });
+      server.on("error", (error) => {
+        process.stderr.write(`subtext: ${error.message}\n`);
+        process.exitCode = 1;
+      });
       return;
     }
 

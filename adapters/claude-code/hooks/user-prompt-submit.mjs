@@ -8,26 +8,44 @@ import { fileURLToPath } from "node:url";
 // A UserPromptSubmit hook must NEVER block the user's prompt: any failure has to
 // fail open by emitting usable stdout and exiting 0. We therefore read and parse
 // stdin defensively. If stdin is missing or not valid JSON we echo the raw input
-// straight back so the host receives its own prompt unchanged.
-let raw = "";
-try {
-  raw = await readStdin();
-} catch (error) {
-  failOpenRaw(raw, error);
-}
+// straight back so the host receives its own prompt unchanged. main() only ever
+// returns (never calls process.exit) so a write right before exit can't be
+// truncated on a non-TTY pipe - the process ends naturally once main() settles.
+const DEFAULT_HOOK_TIMEOUT_MS = 15000;
 
-let event;
-try {
-  event = JSON.parse(raw);
-  if (!event || typeof event !== "object") throw new Error("event is not a JSON object");
-} catch (error) {
-  failOpenRaw(raw, error);
-}
+await main();
 
-await enrichEvent(event);
+async function main() {
+  let raw = "";
+  try {
+    raw = await readStdin();
+  } catch (error) {
+    failOpenRaw(raw, error);
+    return;
+  }
+
+  let event;
+  try {
+    event = JSON.parse(raw);
+    if (!event || typeof event !== "object") throw new Error("event is not a JSON object");
+  } catch (error) {
+    failOpenRaw(raw, error);
+    return;
+  }
+
+  await enrichEvent(event);
+}
 
 async function enrichEvent(event) {
   const audioPath = event.audioPath ?? process.env.SUBTEXT_AUDIO_PATH;
+  if (!audioPath) {
+    // No audio means there is nothing to analyze - pass the event through
+    // untouched, and do it before ever building a (possibly temp-dir-backed)
+    // transcript input for it.
+    process.stdout.write(`${JSON.stringify(event)}\n`);
+    return;
+  }
+
   let transcriptInput = null;
   try {
     transcriptInput = await buildTranscriptInput(event);
@@ -36,9 +54,9 @@ async function enrichEvent(event) {
     return;
   }
 
-  if (!audioPath || !transcriptInput) {
+  if (!transcriptInput) {
     process.stdout.write(`${JSON.stringify(event)}\n`);
-    process.exit(0);
+    return;
   }
 
   const cliPath = resolveCliPath();
@@ -91,7 +109,6 @@ function failOpenRaw(raw, error) {
   process.stderr.write(`subtext: Claude hook failed open: ${message}\n`);
   // Echo whatever we received so the host's prompt passes through untouched.
   process.stdout.write(typeof raw === "string" && raw.length > 0 ? raw : "{}\n");
-  process.exit(0);
 }
 
 function resolveCliPath() {
@@ -104,6 +121,7 @@ function runSubtextCli({
   args,
   input = null
 }) {
+  const timeoutMs = hookTimeoutMs();
   return new Promise((resolvePromise, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {
       stdio: ["pipe", "pipe", "pipe"]
@@ -111,14 +129,23 @@ function runSubtextCli({
 
     let stdout = "";
     let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`subtext CLI timed out after ${timeoutMs} ms`));
+    }, timeoutMs);
+
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString("utf8");
     });
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString("utf8");
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
     child.on("exit", (code) => {
+      clearTimeout(timer);
       if (code === 0) resolvePromise(stdout);
       else reject(new Error(stderr || `subtext exited with code ${code}`));
     });
@@ -129,6 +156,15 @@ function runSubtextCli({
       child.stdin.end(input);
     }
   });
+}
+
+// Mirrors the timeout/kill pattern in adapters/vscode/runner.cjs's spawnSubtext,
+// adapted to this hook's env-var configuration surface (SUBTEXT_AUDIO_PATH,
+// SUBTEXT_CLI_PATH, SUBTEXT_VERBOSITY already exist there). A hung child must
+// never block the user's prompt, so we bound the wait and fail open on timeout.
+function hookTimeoutMs() {
+  const parsed = Number(process.env.SUBTEXT_HOOK_TIMEOUT_MS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_HOOK_TIMEOUT_MS;
 }
 
 async function buildTranscriptInput(event) {

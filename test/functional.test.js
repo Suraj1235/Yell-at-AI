@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -251,6 +251,31 @@ test("HTTP server rejects malformed and oversized JSON requests", async () => {
     });
     assert.equal(oversized.status, 413);
     assert.equal((await oversized.json()).error, "payload_too_large");
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test("CLI serve exits cleanly with a readable error on a port conflict", async () => {
+  const server = startHttpServer({ port: 0, host: "127.0.0.1" });
+  await once(server, "listening");
+  const address = server.address();
+
+  try {
+    const { code, stderr } = await runProcess("node", [
+      bin,
+      "serve",
+      "--port",
+      String(address.port),
+      "--host",
+      address.address
+    ]);
+
+    assert.equal(code, 1);
+    assert.match(stderr, /subtext:/);
+    assert.match(stderr, /EADDRINUSE/);
+    assert.doesNotMatch(stderr, /at Server\./);
+    assert.doesNotMatch(stderr, /node:events/);
   } finally {
     await closeServer(server);
   }
@@ -753,6 +778,45 @@ test("Claude Code hook enriches prompt events and passes through non-audio event
   assert.deepEqual(JSON.parse(passthroughStdout), { prompt: "plain typed prompt" });
 });
 
+test("Claude Code hook fails open (exit 0, quickly) when the subtext CLI child hangs", async () => {
+  const hangingCliPath = tmpPath("hooks", "hanging-subtext-cli.mjs");
+  await mkdir(dirname(hangingCliPath), { recursive: true });
+  await writeFile(hangingCliPath, "setInterval(() => {}, 1000);\n");
+
+  const startedAt = Date.now();
+  const stdout = await run("node", [hook], {
+    input: JSON.stringify({ prompt: text, audioPath }),
+    env: {
+      SUBTEXT_CLI_PATH: hangingCliPath,
+      SUBTEXT_HOOK_TIMEOUT_MS: "300"
+    }
+  });
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.ok(elapsedMs < 10_000, `expected the hook to fail open well under 10s, took ${elapsedMs}ms`);
+  const result = JSON.parse(stdout);
+  assert.equal(result.prompt, text);
+  assert.match(result.subtext_error, /timed out/i);
+});
+
+test("Claude Code hook does not leak a temp dir when there is no audioPath", async () => {
+  const scratchDir = tmpPath("hook-tmp-scratch");
+  await mkdir(scratchDir, { recursive: true });
+  const event = { transcript: { text: "hello", source: "test" } };
+
+  const stdout = await run("node", [hook], {
+    input: JSON.stringify(event),
+    env: { TMPDIR: scratchDir, TEMP: scratchDir, TMP: scratchDir }
+  });
+
+  assert.deepEqual(JSON.parse(stdout), event);
+  const entries = await readdir(scratchDir);
+  assert.ok(
+    !entries.some((entry) => entry.startsWith("subtext-claude-")),
+    `expected no leaked subtext-claude-* temp dir, found: ${entries.join(", ")}`
+  );
+});
+
 test("Codex MCP config example stays parseable and points at the subtext command", async () => {
   const config = JSON.parse(await readFile(join(root, "adapters", "codex", "mcp.config.example.json"), "utf8"));
   assert.equal(config.mcpServers.subtext.command, "node");
@@ -1066,6 +1130,15 @@ test("harness catalog covers implemented and target top harnesses", async () => 
 });
 
 function run(command, args, options = {}) {
+  return runProcess(command, args, options).then(({ code, stdout, stderr }) => {
+    if (code === 0) return stdout;
+    throw new Error(stderr || `${command} exited ${code}`);
+  });
+}
+
+// Like run(), but never rejects on a non-zero exit code - callers get the raw
+// { code, stdout, stderr } so they can assert on failure paths directly.
+function runProcess(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
@@ -1082,9 +1155,9 @@ function run(command, args, options = {}) {
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString("utf8");
     });
+    child.on("error", reject);
     child.on("exit", (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(stderr || `${command} exited ${code}`));
+      resolve({ code, stdout, stderr });
     });
 
     if (options.input !== undefined) {
