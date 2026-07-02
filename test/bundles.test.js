@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { buildAdapterBundles } from "../src/index.js";
 import { ROOT } from "../src/harness/bundles.js";
@@ -33,6 +33,14 @@ test("buildAdapterBundles defaults outRoot to process.cwd(), not the package roo
     const expectedOutRoot = join(scratchCwd, "dist", "adapters");
     const writtenIndex = JSON.parse(await readFile(join(expectedOutRoot, "index.json"), "utf8"));
     assert.deepEqual(writtenIndex, index, "default outRoot should be under process.cwd(), not the package root");
+    for (const bundle of index.bundles) {
+      const expectedPath = resolve(join(expectedOutRoot, bundle.id));
+      assert.equal(
+        bundle.path,
+        expectedPath,
+        `${bundle.path} should be the native absolute bundle dir when outRoot is outside root (cross-drive on this machine)`
+      );
+    }
   } finally {
     process.chdir(originalCwd);
     await rm(scratchCwd, { recursive: true, force: true });

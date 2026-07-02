@@ -1,5 +1,5 @@
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runHarnessDoctor } from "./doctor.js";
 
@@ -355,7 +355,7 @@ async function exists(filePath) {
 function relativeDistPath(root, value) {
   const normalizedValue = resolve(value);
   const relativePath = relative(resolve(root), normalizedValue);
-  return relativePath.startsWith("..")
+  return relativePath.startsWith("..") || isAbsolute(relativePath)
     ? normalizedValue
     : relativePath.split(sep).join("/");
 }
