@@ -75,7 +75,13 @@ export function buildRecorderCommand({ audioPath, durationSec, sampleRate, devic
     };
   }
 
-  throw new Error("No default recorder for this platform. Provide --record-command or SUBTEXT_RECORD_COMMAND.");
+  throw new Error(
+    `No built-in recorder for this platform (${process.platform}); only macOS has one. ` +
+    "Provide --record-command or set SUBTEXT_RECORD_COMMAND with a template using the " +
+    "{out}, {duration}, {sampleRate}, {device} placeholders. Examples: " +
+    "Windows: --record-command \"ffmpeg -f dshow -i audio=\\\"Microphone\\\" -t {duration} {out}\"; " +
+    "Linux: --record-command \"arecord -d {duration} -f cd {out}\"."
+  );
 }
 
 function runRecorder(recorder, { timeoutMs }) {

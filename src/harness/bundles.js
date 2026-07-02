@@ -1,5 +1,5 @@
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runHarnessDoctor } from "./doctor.js";
 
@@ -353,9 +353,9 @@ async function exists(filePath) {
 }
 
 function relativeDistPath(root, value) {
-  const normalizedRoot = `${resolve(root)}/`;
   const normalizedValue = resolve(value);
-  return normalizedValue.startsWith(normalizedRoot)
-    ? normalizedValue.slice(normalizedRoot.length)
-    : normalizedValue;
+  const relativePath = relative(resolve(root), normalizedValue);
+  return relativePath.startsWith("..")
+    ? normalizedValue
+    : relativePath.split(sep).join("/");
 }
