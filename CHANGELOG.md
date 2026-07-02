@@ -12,8 +12,7 @@ Initial release: Subtext as an offline, model-free meaning-and-emotion layer for
 
 - Core prosody analyzer producing the `vocalcontext/v1` contract: emphasis, delivery, affect, guidance,
   and flags, model-free and offline.
-- CLI (`yell-at-ai` / `subtext`) with `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`,
-  `serve`, `mcp`, `doctor`, and `install-adapter` commands.
+- CLI (`yell-at-ai` / `subtext`) for analysis, capture, calibration, handoff, local serving, and adapter integration.
 - HTTP and MCP-style JSON-RPC servers exposing `analyze_file` / `analyze_audio` tools over localhost.
 - Editor and host adapters: Claude Code, Codex, VS Code, a global-hotkey push-to-talk adapter, and a
   native-desktop (Tauri/Rust) working foundation.
