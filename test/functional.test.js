@@ -4,7 +4,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { startHttpServer } from "../src/index.js";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -16,6 +16,10 @@ const audioPath = join(root, "eval", "fixtures", "emphasis.wav");
 const fakeRecorder = "node scripts/fake-recorder.mjs {out}";
 const text = "can we just refactor the whole auth module";
 const runTmp = join(root, "tmp", `functional-${process.pid}-${Date.now()}`);
+
+after(async () => {
+  await rm(runTmp, { recursive: true, force: true });
+});
 
 function tmpPath(...parts) {
   return join(runTmp, ...parts);
