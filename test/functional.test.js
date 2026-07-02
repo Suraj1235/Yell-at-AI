@@ -668,6 +668,8 @@ test("MCP server lists tools and runs analyze_file", async () => {
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} })}\n`);
     const init = await client.waitForId(1);
     assert.equal(init.result.serverInfo.name, "subtext");
+    const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    assert.equal(init.result.serverInfo.version, pkg.version);
 
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })}\n`);
     const listed = await client.waitForId(2);

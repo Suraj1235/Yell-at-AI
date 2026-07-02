@@ -47,6 +47,7 @@
     "scripts/",
     "src/",
     "ui/",
+    "CHANGELOG.md",
     "CITATION.cff",
     "CODE_OF_CONDUCT.md",
     "COMMERCIAL-LICENSE.md",

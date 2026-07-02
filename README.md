@@ -145,7 +145,7 @@ and `subtext` resolve to the same tool:
 npx yell-at-ai doctor
 
 # or install globally
-npm install -g @subtext/yell-at-ai
+npm install -g yell-at-ai
 yell-at-ai analyze --audio turn.wav --text "..." --format prompt
 ```
 
@@ -326,6 +326,7 @@ docs/                blueprint, architecture, contract, testing, licensing, road
 - [Calibration](docs/CALIBRATION.md) · [Natural Speech](docs/NATURAL_SPEECH.md) · [Native Transcript Bridge](docs/NATIVE_TRANSCRIPT_BRIDGE.md) · [Universal Handoff](docs/UNIVERSAL_HANDOFF.md)
 - [Desktop Capture](docs/DESKTOP_CAPTURE.md) · [Native Desktop](docs/NATIVE_DESKTOP.md) · [Web Preview](docs/WEB_PREVIEW.md)
 - [Testing](docs/TESTING.md) · [External Emotion Eval](docs/EXTERNAL_EMOTION_EVAL.md) · [Wild YouTube Eval](docs/WILD_YOUTUBE_EVAL.md)
+- [Changelog](CHANGELOG.md) — release history in Keep a Changelog format
 - `subtext install-adapter` copies a harness bundle into a target directory with concrete generated config for this checkout.
 
 </details>

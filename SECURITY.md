@@ -6,7 +6,9 @@ Security fixes target the latest released version while the project is pre-1.0.
 
 ## Reporting
 
-Please report vulnerabilities privately to the maintainers before public disclosure.
+Please report vulnerabilities privately to the maintainers before public disclosure. Use GitHub's
+private vulnerability reporting: open **"Report a vulnerability"** from the repo's Security tab, or go
+directly to https://github.com/manishgit61332/Yell-at-AI/security/advisories/new.
 
 Include:
 

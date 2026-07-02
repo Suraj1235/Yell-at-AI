@@ -1,8 +1,15 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import readline from "node:readline";
+import { fileURLToPath } from "node:url";
 import { parseWav } from "../audio/wav.js";
 import { analyzeFile, analyzeSamples } from "../contract/analyzer.js";
 import { renderVocalContext } from "../render/text.js";
 import { normalizeTranscriptEnvelope } from "../transcript/envelope.js";
+
+const packageVersion = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"), "utf8")
+).version;
 
 export function startMcpServer({ input = process.stdin, output = process.stdout } = {}) {
   const rl = readline.createInterface({ input, crlfDelay: Infinity });
@@ -34,7 +41,7 @@ async function handleMessage(message) {
     return {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "subtext", version: "0.1.0" }
+      serverInfo: { name: "subtext", version: packageVersion }
     };
   }
 

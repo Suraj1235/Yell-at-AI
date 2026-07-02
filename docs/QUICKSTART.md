@@ -52,7 +52,7 @@ ship the whole thing
 Install it globally if you reach for it often:
 
 ```sh
-npm install -g @subtext/yell-at-ai
+npm install -g yell-at-ai
 yell-at-ai doctor          # check which integrations are ready
 yell-at-ai serve           # local mic preview at http://127.0.0.1:8765
 ```
