@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { startHttpServer } from "../src/index.js";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -16,6 +16,10 @@ const audioPath = join(root, "eval", "fixtures", "emphasis.wav");
 const fakeRecorder = "node scripts/fake-recorder.mjs {out}";
 const text = "can we just refactor the whole auth module";
 const runTmp = join(root, "tmp", `functional-${process.pid}-${Date.now()}`);
+
+after(async () => {
+  await rm(runTmp, { recursive: true, force: true });
+});
 
 function tmpPath(...parts) {
   return join(runTmp, ...parts);
@@ -256,6 +260,31 @@ test("HTTP server rejects malformed and oversized JSON requests", async () => {
   }
 });
 
+test("CLI serve exits cleanly with a readable error on a port conflict", async () => {
+  const server = startHttpServer({ port: 0, host: "127.0.0.1" });
+  await once(server, "listening");
+  const address = server.address();
+
+  try {
+    const { code, stderr } = await runProcess("node", [
+      bin,
+      "serve",
+      "--port",
+      String(address.port),
+      "--host",
+      address.address
+    ]);
+
+    assert.equal(code, 1);
+    assert.match(stderr, /subtext:/);
+    assert.match(stderr, /EADDRINUSE/);
+    assert.doesNotMatch(stderr, /at Server\./);
+    assert.doesNotMatch(stderr, /node:events/);
+  } finally {
+    await closeServer(server);
+  }
+});
+
 test("CLI calibrate writes a reusable baseline for analyze", async () => {
   const baselinePath = tmpPath("functional-baseline.json");
   await run("node", [
@@ -304,6 +333,28 @@ test("CLI calibrate writes a reusable baseline for analyze", async () => {
   const contract = JSON.parse(stdout);
   assert.equal(contract.calibration.baseline, "personal");
   assert.equal(contract.calibration.samples, 2);
+});
+
+test("CLI surfaces a labeled, file-naming error for a malformed --baseline JSON file", async () => {
+  const badBaselinePath = tmpPath("functional-bad-baseline.json");
+  await mkdir(dirname(badBaselinePath), { recursive: true });
+  await writeFile(badBaselinePath, "{oops");
+
+  const { code, stderr } = await runProcess("node", [
+    bin,
+    "analyze",
+    "--audio",
+    audioPath,
+    "--text",
+    text,
+    "--baseline",
+    badBaselinePath
+  ]);
+
+  assert.equal(code, 1);
+  assert.match(stderr, /subtext:/);
+  assert.match(stderr, /baseline JSON/i);
+  assert.match(stderr, new RegExp(escapeRegExp(badBaselinePath)));
 });
 
 test("CLI profile store manages named calibration profiles", async () => {
@@ -643,6 +694,8 @@ test("MCP server lists tools and runs analyze_file", async () => {
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} })}\n`);
     const init = await client.waitForId(1);
     assert.equal(init.result.serverInfo.name, "subtext");
+    const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    assert.equal(init.result.serverInfo.version, pkg.version);
 
     child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })}\n`);
     const listed = await client.waitForId(2);
@@ -751,6 +804,45 @@ test("Claude Code hook enriches prompt events and passes through non-audio event
     input: JSON.stringify({ prompt: "plain typed prompt" })
   });
   assert.deepEqual(JSON.parse(passthroughStdout), { prompt: "plain typed prompt" });
+});
+
+test("Claude Code hook fails open (exit 0, quickly) when the subtext CLI child hangs", async () => {
+  const hangingCliPath = tmpPath("hooks", "hanging-subtext-cli.mjs");
+  await mkdir(dirname(hangingCliPath), { recursive: true });
+  await writeFile(hangingCliPath, "setInterval(() => {}, 1000);\n");
+
+  const startedAt = Date.now();
+  const stdout = await run("node", [hook], {
+    input: JSON.stringify({ prompt: text, audioPath }),
+    env: {
+      SUBTEXT_CLI_PATH: hangingCliPath,
+      SUBTEXT_HOOK_TIMEOUT_MS: "300"
+    }
+  });
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.ok(elapsedMs < 10_000, `expected the hook to fail open well under 10s, took ${elapsedMs}ms`);
+  const result = JSON.parse(stdout);
+  assert.equal(result.prompt, text);
+  assert.match(result.subtext_error, /timed out/i);
+});
+
+test("Claude Code hook does not leak a temp dir when there is no audioPath", async () => {
+  const scratchDir = tmpPath("hook-tmp-scratch");
+  await mkdir(scratchDir, { recursive: true });
+  const event = { transcript: { text: "hello", source: "test" } };
+
+  const stdout = await run("node", [hook], {
+    input: JSON.stringify(event),
+    env: { TMPDIR: scratchDir, TEMP: scratchDir, TMP: scratchDir }
+  });
+
+  assert.deepEqual(JSON.parse(stdout), event);
+  const entries = await readdir(scratchDir);
+  assert.ok(
+    !entries.some((entry) => entry.startsWith("subtext-claude-")),
+    `expected no leaked subtext-claude-* temp dir, found: ${entries.join(", ")}`
+  );
 });
 
 test("Codex MCP config example stays parseable and points at the subtext command", async () => {
@@ -1066,6 +1158,15 @@ test("harness catalog covers implemented and target top harnesses", async () => 
 });
 
 function run(command, args, options = {}) {
+  return runProcess(command, args, options).then(({ code, stdout, stderr }) => {
+    if (code === 0) return stdout;
+    throw new Error(stderr || `${command} exited ${code}`);
+  });
+}
+
+// Like run(), but never rejects on a non-zero exit code - callers get the raw
+// { code, stdout, stderr } so they can assert on failure paths directly.
+function runProcess(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
@@ -1082,9 +1183,9 @@ function run(command, args, options = {}) {
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString("utf8");
     });
+    child.on("error", reject);
     child.on("exit", (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(stderr || `${command} exited ${code}`));
+      resolve({ code, stdout, stderr });
     });
 
     if (options.input !== undefined) {

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { parseCommand } from "../util/command.js";
 
 export async function copyToClipboard(text, overrideCommand = null) {
   const commands = overrideCommand ? [parseCommand(overrideCommand)] : defaultClipboardCommands();
@@ -31,10 +32,6 @@ function defaultClipboardCommands() {
   return process.env.WAYLAND_DISPLAY
     ? [["wl-copy"], ...linuxCommands]
     : linuxCommands;
-}
-
-function parseCommand(value) {
-  return String(value).match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, "")) ?? [];
 }
 
 function writeToCommand(command, text) {

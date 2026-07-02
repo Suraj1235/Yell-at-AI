@@ -1,5 +1,5 @@
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runHarnessDoctor } from "./doctor.js";
 
@@ -71,7 +71,7 @@ export const BUNDLE_FILES = Object.freeze({
 
 export async function buildAdapterBundles(options = {}) {
   const root = options.root ? resolve(options.root) : ROOT;
-  const outRoot = options.outRoot ? resolve(options.outRoot) : join(root, "dist", "adapters");
+  const outRoot = options.outRoot ? resolve(options.outRoot) : join(process.cwd(), "dist", "adapters");
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const harnesses = await readHarnessCatalog(root);
   const doctor = await runHarnessDoctor({ root });
@@ -353,9 +353,9 @@ async function exists(filePath) {
 }
 
 function relativeDistPath(root, value) {
-  const normalizedRoot = `${resolve(root)}/`;
   const normalizedValue = resolve(value);
-  return normalizedValue.startsWith(normalizedRoot)
-    ? normalizedValue.slice(normalizedRoot.length)
-    : normalizedValue;
+  const relativePath = relative(resolve(root), normalizedValue);
+  return relativePath.startsWith("..") || isAbsolute(relativePath)
+    ? normalizedValue
+    : relativePath.split(sep).join("/");
 }

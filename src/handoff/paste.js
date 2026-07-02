@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { copyToClipboard } from "./clipboard.js";
+import { parseCommand } from "../util/command.js";
 
 export async function pasteIntoActiveApp(text, options = {}) {
   const clipboard = await copyToClipboard(text, options.clipboardCommand);
@@ -21,7 +22,7 @@ export async function pasteIntoActiveApp(text, options = {}) {
   };
 }
 
-function defaultPasteCommand() {
+export function defaultPasteCommand() {
   if (process.platform === "darwin") {
     return [
       "osascript",
@@ -39,12 +40,10 @@ function defaultPasteCommand() {
     ];
   }
 
-  return [["xdotool", "key", "ctrl+v"], ["wtype", "-M", "ctrl", "v", "-m", "ctrl"]]
-    .find((command) => command);
-}
-
-function parseCommand(value) {
-  return String(value).match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, "")) ?? [];
+  if (process.env.WAYLAND_DISPLAY) {
+    return ["wtype", "-M", "ctrl", "v", "-m", "ctrl"];
+  }
+  return ["xdotool", "key", "ctrl+v"];
 }
 
 function runCommand(command) {

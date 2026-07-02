@@ -1,0 +1,54 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Dry run (skip the actual npm publish)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.18.0 && npm --version
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run smoke
+      # Also runs for a non-dry-run workflow_dispatch: a real publish must only
+      # succeed when dispatched from the v* release tag ref (pick that tag as
+      # the dispatch ref in the GitHub UI). Dry-run dispatches stay unguarded
+      # and can be run from any branch.
+      - name: Verify tag matches package.json version
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs['dry-run'])
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$TAG_NAME" != "$PKG_VERSION" ]; then
+            echo "Tag $TAG_NAME does not match package.json version ($PKG_VERSION)" >&2
+            exit 1
+          fi
+      # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN. Must be configured for this repo+workflow on npmjs.com before the first real run.
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs['dry-run']
+        run: npm publish --provenance --access public --dry-run
+      - name: Publish
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs['dry-run'])
+        run: npm publish --provenance --access public
