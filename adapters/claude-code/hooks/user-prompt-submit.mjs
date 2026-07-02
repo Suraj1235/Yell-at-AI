@@ -13,10 +13,15 @@ import { fileURLToPath } from "node:url";
 // truncated on a non-TTY pipe - the process ends naturally once main() settles.
 const DEFAULT_HOOK_TIMEOUT_MS = 15000;
 
-await main();
+// Backstop: main() already catches every error it knows about and fails open.
+// This .catch() only exists for something unforeseen slipping past all of
+// those (e.g. a rejection we didn't anticipate) - it must still exit 0 with
+// usable stdout, so it reuses the same raw-passthrough as readStdin/parse
+// failures instead of letting the rejection escape to the top level.
+let raw = "";
+await main().catch((error) => failOpenRaw(raw, error));
 
 async function main() {
-  let raw = "";
   try {
     raw = await readStdin();
   } catch (error) {
@@ -91,7 +96,15 @@ async function enrichEvent(event) {
   } catch (error) {
     failOpenEvent(event, error);
   } finally {
-    await transcriptInput.cleanup?.();
+    // Cleanup must never reject past this point (e.g. Windows EBUSY on rm) -
+    // a hook failing here would escape both try/catch above and violate the
+    // fail-open contract by exiting non-zero.
+    try {
+      await transcriptInput.cleanup?.();
+    } catch (cleanupError) {
+      const message = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+      process.stderr.write(`subtext: Claude hook cleanup failed: ${message}\n`);
+    }
   }
 }
 

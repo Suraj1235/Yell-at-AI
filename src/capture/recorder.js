@@ -79,7 +79,8 @@ export function buildRecorderCommand({ audioPath, durationSec, sampleRate, devic
     `No built-in recorder for this platform (${process.platform}); only macOS has one. ` +
     "Provide --record-command or set SUBTEXT_RECORD_COMMAND with a template using the " +
     "{out}, {duration}, {sampleRate}, {device} placeholders. Examples: " +
-    "Windows: --record-command \"ffmpeg -f dshow -i audio=\\\"Microphone\\\" -t {duration} {out}\"; " +
+    "Windows: --record-command \"ffmpeg -f dshow -i audio=Microphone -t {duration} {out}\" " +
+    "(quote the whole token if the device name has spaces, e.g. \"audio=My Microphone\"); " +
     "Linux: --record-command \"arecord -d {duration} -f cd {out}\"."
   );
 }
