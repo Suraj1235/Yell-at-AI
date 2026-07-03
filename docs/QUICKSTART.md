@@ -10,11 +10,9 @@ Pick the path that fits you.
 
 ## 1. Web demo (no install)
 
-Run the demo locally (any static server) from [`apps/web`](../apps/web), or deploy it to Vercel in one
-step — see [apps/web/README.md](../apps/web/README.md). Then allow microphone access and speak a short
-line with one word leaned on:
-
-> **Web demo:** static, fully client-side — `apps/web/` (public URL added once deployed).
+Open **[https://yell-at-ai.vercel.app](https://yell-at-ai.vercel.app)**, allow microphone access, and
+speak a short line with one word leaned on. (Prefer local? Serve [`apps/web`](../apps/web) with any
+static server — see [apps/web/README.md](../apps/web/README.md).)
 
 You will see the live transcript plus the vocal context Subtext reads from your delivery, with a copy
 button for the enriched prompt. Everything runs in the page - your audio never leaves the browser.
@@ -26,14 +24,15 @@ and Subtext still analyzes the recording's prosody.
 
 ## 2. CLI (30 seconds)
 
-Run it on a bundled sample with no setup. `yell-at-ai` and `subtext` are the same tool:
+Run it on the bundled sample with no setup — works from any directory. `yell-at-ai` and `subtext`
+are the same tool:
 
 ```sh
-npx yell-at-ai analyze \
-  --audio eval/fixtures/emphasis.wav \
-  --text "ship the whole thing" \
-  --format prompt
+npx yell-at-ai demo
 ```
+
+(In a source checkout, run `npm run fixtures` once first so the sample WAV exists, then
+`node bin/subtext.js demo`.)
 
 Output:
 
