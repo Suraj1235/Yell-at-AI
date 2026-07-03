@@ -44,6 +44,18 @@ export async function runCli(argv = []) {
       return;
     }
 
+    if (command === "demo") {
+      const args = parseArgs(rest);
+      args.audio = join(dirname(fileURLToPath(import.meta.url)), "..", "eval", "fixtures", "emphasis.wav");
+      args.text = args.text ?? "ship the whole thing";
+      const contract = await analyzeFromArgs(args, "demo");
+      const output = args.format === "json"
+        ? `${JSON.stringify(contract, null, 2)}\n`
+        : renderVocalContext(contract, { verbosity: args.verbosity ?? "subtle" });
+      process.stdout.write(output);
+      return;
+    }
+
     if (command === "handoff") {
       const args = parseArgs(rest);
       const contract = await analyzeFromArgs(args, "handoff");
@@ -259,6 +271,7 @@ Usage:
   subtext <command> [options]
 
 Commands:
+  demo              Analyze the bundled sample and print the enriched prompt (works from any directory)
   analyze           Analyze a WAV + transcript into a vocalcontext/v1 contract (--format json|prompt)
   serve             Run the local HTTP analysis server (no audio leaves the machine)
   capture           Record audio from the mic, then optionally analyze it

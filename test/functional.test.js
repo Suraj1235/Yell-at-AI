@@ -51,6 +51,17 @@ test("CLI analyze renders an injectable vocal-context prompt", async () => {
   assert.match(stdout, new RegExp(`${escapeRegExp(text)}\\s*$`));
 });
 
+test("CLI demo runs from any directory using the bundled sample", async () => {
+  const foreignCwd = tmpPath("demo-foreign-cwd");
+  await mkdir(foreignCwd, { recursive: true });
+
+  const stdout = await run("node", [bin, "demo"], { cwd: foreignCwd });
+
+  assert.match(stdout, /<vocal-context schema="vocalcontext\/v1">/);
+  assert.match(stdout, /Emphasis: whole/);
+  assert.match(stdout, /ship the whole thing\s*$/);
+});
+
 test("CLI analyze accepts native transcript envelope files", async () => {
   const transcriptPath = tmpPath("functional-transcript-envelope.json");
   await mkdir(dirname(transcriptPath), { recursive: true });
@@ -1169,7 +1180,7 @@ function run(command, args, options = {}) {
 function runProcess(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      cwd: root,
+      cwd: options.cwd ?? root,
       stdio: ["pipe", "pipe", "pipe"],
       shell: process.platform === "win32" && command === "npm",
       env: { ...process.env, ...(options.env ?? {}) }

@@ -10,10 +10,14 @@
 </p>
 
 <p align="center">
+  <sub><strong>Subtext</strong> is the product; it ships as the <code>yell-at-ai</code> npm package, and the CLI answers to both <code>subtext</code> and <code>yell-at-ai</code>.</sub>
+</p>
+
+<p align="center">
   <a href="#try-it-in-30-seconds"><img alt="Try it" src="https://img.shields.io/badge/try_it-30_seconds-2dd4bf?style=for-the-badge"></a>
   <a href="#install"><img alt="Install" src="https://img.shields.io/badge/install-npx_yell--at--ai-8b5cf6?style=for-the-badge"></a>
   <a href="docs/CONTRACT.md"><img alt="Schema" src="https://img.shields.io/badge/schema-vocalcontext%2Fv1-60a5fa?style=for-the-badge"></a>
-  <a href="docs/TESTING.md"><img alt="Tests" src="https://img.shields.io/badge/tests-72_passing-22c55e?style=for-the-badge"></a>
+  <a href="https://github.com/manishgit61332/Yell-at-AI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/manishgit61332/Yell-at-AI/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-noncommercial_source-f59e0b?style=for-the-badge"></a>
 </p>
 
@@ -105,20 +109,17 @@ flowchart LR
 
 ## Try it in 30 seconds
 
-**In the browser** — no install. Open the web demo, allow the mic, and speak a line with one word
-leaned on. You see the live transcript plus the vocal-context Subtext reads from your delivery, all
-client-side — your audio never leaves the page.
+**In the browser** — no install. Open **[yell-at-ai.vercel.app](https://yell-at-ai.vercel.app)**, allow
+the mic, and speak a line with one word leaned on. You see the live transcript plus the vocal-context
+Subtext reads from your delivery, all client-side — your audio never leaves the page.
 
-> **Web demo:** fully client-side. Run it locally from [`apps/web`](apps/web), or deploy it to Vercel
-> in one step — see [apps/web/README.md](apps/web/README.md).
+> **Web demo:** [https://yell-at-ai.vercel.app](https://yell-at-ai.vercel.app) — fully client-side.
+> Prefer local? Run it from [`apps/web`](apps/web) — see [apps/web/README.md](apps/web/README.md).
 
-**From the terminal** — run it on a bundled sample with no setup:
+**From the terminal** — run it on the bundled sample with no setup. Works from any directory:
 
 ```sh
-npx yell-at-ai analyze \
-  --audio eval/fixtures/emphasis.wav \
-  --text "ship the whole thing" \
-  --format prompt
+npx yell-at-ai demo
 ```
 
 You get the transcript with a grounded evidence block prepended:
@@ -166,9 +167,9 @@ An honest cut of what is shipped versus what is a working foundation today.
 | Surface | State | Notes |
 | --- | --- | --- |
 | Prosody engine (`vocalcontext/v1`) | 🟢 shipped | model-free DSP, alignment, affect, flags; offline; cross-platform green on Windows, macOS, Linux |
-| CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
-| Web demo | 🟢 shipped | mic → live dictation → client-side `vocalcontext/v1` → enriched prompt; static app in `apps/web/`, one-step Vercel deploy |
-| Editor adapters (Claude Code, Codex, VS Code) | 🟢 shipped | one-command bundles with generated host config |
+| CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `demo`, `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
+| Web demo | 🟢 shipped | [yell-at-ai.vercel.app](https://yell-at-ai.vercel.app) — mic → live dictation → client-side `vocalcontext/v1` → enriched prompt; static app in `apps/web/` |
+| Editor adapters (Claude Code, Codex, VS Code) | 🟡 templates — manual install | `install-adapter` generates the bundle + host config; you wire it into the host yourself; no marketplace packages yet |
 | HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
 | Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |
 | Offline whisper STT adapter | 🟡 working foundation | pluggable `whisper` adapter with binary auto-detect + docs; multi-platform binary bundling and model auto-download are follow-ups |
