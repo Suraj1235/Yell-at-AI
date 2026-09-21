@@ -1,6 +1,10 @@
 import { access, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { listEngines, getEngine } from "../transcribe/engines.js";
+import { resolveWhisperBinary, resolveWhisperModel } from "../transcribe/whisper.js";
+import { findRecorderOnPath } from "../capture/recorder.js";
+import { listModels, modelDirectory } from "../transcribe/models.js";
 
 const ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const SCHEMA = "subtext/harness-doctor/v1";
@@ -154,7 +158,99 @@ export function renderHarnessDoctor(report) {
     lines.push(`  next: ${harness.nextStep}`);
   }
 
+  // Append the STT readiness section so `subtext doctor` reports engine
+  // readiness and network egress without any change to the CLI's call site:
+  // renderHarnessDoctor is handed only the harness report today, so this
+  // computes its own readiness snapshot off the live environment.
+  lines.push(renderSttReadiness(checkSttReadiness()));
+
   return `${lines.join("\n")}\n`;
+}
+
+// Report which STT engines can actually run here, and say plainly which ones
+// would send audio off the device. This is what `subtext doctor` prints before a
+// user commits to an engine. `platform` is injectable (defaults to
+// process.platform) so tests can pin it, matching findRecorderOnPath below,
+// which resolves recorders differently per platform (e.g. darwin's afrecord is
+// checked by a fixed absolute path rather than via PATH).
+export function checkSttReadiness(env = process.env, platform = process.platform) {
+  const engines = listEngines("node").map((engine) => {
+    if (engine.id === "whisper") {
+      try {
+        const binary = resolveWhisperBinary(env, platform);
+        // resolveWhisperModel honours SUBTEXT_WHISPER_MODEL first and falls back
+        // to the managed model directory, so this reflects what dictate would
+        // actually use.
+        const model = resolveWhisperModel(env);
+        return {
+          id: engine.id,
+          egress: engine.egress,
+          ready: Boolean(model),
+          detail: model
+            ? `whisper.cpp at ${binary}, model ${model}`
+            : `whisper.cpp at ${binary}, but no model installed. Run: subtext model download base.en --yes`
+        };
+      } catch (error) {
+        return { id: engine.id, egress: engine.egress, ready: false, detail: error.message };
+      }
+    }
+
+    if (engine.id === "cloud") {
+      const key = env.SUBTEXT_CLOUD_API_KEY || env.GROQ_API_KEY || env.DEEPGRAM_API_KEY;
+      return {
+        id: engine.id,
+        egress: engine.egress,
+        ready: Boolean(key),
+        detail: key
+          ? `API key found; audio would be sent to ${engine.vendor}`
+          : "no API key set (SUBTEXT_CLOUD_API_KEY, GROQ_API_KEY, or DEEPGRAM_API_KEY)"
+      };
+    }
+
+    return {
+      id: engine.id,
+      egress: engine.egress,
+      ready: true,
+      detail: "available; you supply the command, so its egress is unknown to Subtext"
+    };
+  });
+
+  const found = findRecorderOnPath(env, platform);
+  return {
+    engines,
+    recorder: {
+      ready: Boolean(found),
+      detail: found
+        ? `${found.name} at ${found.executable}`
+        : "no recorder found. Install ffmpeg (https://ffmpeg.org/download.html) or pass --record-command."
+    },
+    models: listModels(env),
+    modelDirectory: modelDirectory(env)
+  };
+}
+
+// Render the STT section of `subtext doctor`. The egress column is the point of
+// this output: a user choosing an engine must be able to see, without reading
+// docs, which ones send their audio somewhere.
+export function renderSttReadiness(readiness) {
+  const lines = ["", "Speech-to-text", ""];
+
+  for (const engine of readiness.engines) {
+    const mark = engine.ready ? "ok  " : "--  ";
+    const egress =
+      engine.egress === "none" ? "[on-device]"
+      : engine.egress === "vendor" ? `[sends audio to ${getEngine(engine.id).vendor}]`
+      : "[egress unknown]";
+    lines.push(`  ${mark}${engine.id.padEnd(10)} ${egress}`);
+    lines.push(`      ${engine.detail}`);
+  }
+
+  lines.push("");
+  lines.push(`  ${readiness.recorder.ready ? "ok  " : "--  "}recorder   ${readiness.recorder.detail}`);
+  lines.push(`      models in ${readiness.modelDirectory}`);
+  lines.push("");
+
+  return lines.join("\n");
 }
 
 function file(name, path) {

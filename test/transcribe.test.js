@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { transcribe, transcribeWithCommand, transcribeWithWhisper, ADAPTERS } from "../src/transcribe/index.js";
 import {
   resolveWhisperBinary,
@@ -11,6 +14,7 @@ import {
 } from "../src/transcribe/whisper.js";
 
 const NONEXISTENT_BIN = "/no/such/whisper/binary-zzzqx";
+const NONEXISTENT_DIR = "/no/such/whisper/model-dir-zzzqx";
 // A path guaranteed to exist on every platform, used to satisfy the file-exists
 // checks in resolveWhisperBinary/resolveWhisperModel without spawning anything
 // (the runner is always faked, so this binary is never actually executed).
@@ -239,8 +243,62 @@ test("whisper adapter throws an actionable error when SUBTEXT_WHISPER_MODEL is m
 });
 
 test("resolveWhisperModel returns null when SUBTEXT_WHISPER_MODEL is unset", () => {
-  assert.equal(resolveWhisperModel({ PATH: "" }), null);
+  // SUBTEXT_MODEL_DIR is pinned to a directory that cannot exist so this test
+  // does not depend on whether the machine running it happens to have a
+  // whisper model already installed under the real home directory.
+  assert.equal(resolveWhisperModel({ PATH: "", SUBTEXT_MODEL_DIR: NONEXISTENT_DIR }), null);
   assert.equal(resolveWhisperModel({ SUBTEXT_WHISPER_MODEL: REAL_FILE, PATH: "" }), REAL_FILE);
+});
+
+test("resolveWhisperBinary does not resolve a main.CPL-shaped candidate on Windows (regression)", async () => {
+  // Reproduces a real bug: WHISPER_BINARY_NAMES includes the generic name
+  // "main", and a machine whose PATHEXT lists Windows shell-associated
+  // extensions (.CPL for Control Panel applets, .MSC, .JS, .VBS, ...) would
+  // resolve "main" to something like C:\WINDOWS\system32\main.CPL - a Control
+  // Panel applet, not a whisper binary. Since whisper is the default STT
+  // engine, this silently baffling-ly broke dictate on any such machine.
+  //
+  // Hermetic: platform is injected as "win32" regardless of the host running
+  // this test (CI runs ubuntu/windows/macos), and PATH/PATHEXT point only at
+  // a throwaway temp directory this test creates and cleans up itself.
+  const dir = await mkdtemp(join(tmpdir(), "subtext-whisper-cpl-"));
+  try {
+    const cplPath = join(dir, "main.CPL");
+    await writeFile(cplPath, "");
+
+    assert.throws(
+      () => resolveWhisperBinary(
+        {
+          PATH: dir,
+          PATHEXT: ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL"
+        },
+        "win32"
+      ),
+      (error) => {
+        assert.equal(error.message, WHISPER_NOT_FOUND_MESSAGE);
+        return true;
+      },
+      "a main.CPL file on PATH must never be resolved as the whisper binary"
+    );
+
+    // Positive control: the same directory resolves once it also has a
+    // genuinely executable candidate, proving the restriction is scoped to
+    // non-executable extensions and does not lose a legitimate binary.
+    const exePath = join(dir, "main.EXE");
+    await writeFile(exePath, "");
+    assert.equal(
+      resolveWhisperBinary(
+        {
+          PATH: dir,
+          PATHEXT: ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL"
+        },
+        "win32"
+      ),
+      exePath
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("buildWhisperArgs places the audio path last and requests JSON by default", () => {

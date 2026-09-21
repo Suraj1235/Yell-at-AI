@@ -1,9 +1,9 @@
 # Offline Whisper STT
 
-**Status: experimental (library API only — not yet wired into the CLI).** `transcribe()`
-and the `whisper` adapter are importable from the package entrypoint (`import { transcribe }
-from "yell-at-ai"`), but no `subtext` CLI command calls into them yet; today the CLI's own
-speech-to-text path is the `--transcript-command` mechanism described below.
+**Status: shipped.** `subtext dictate --engine whisper` is the default path, and
+`subtext model download base.en --yes` installs the model. `transcribe()` and the `whisper`
+adapter remain importable from the package entrypoint (`import { transcribe } from
+"yell-at-ai"`) for library use.
 
 Subtext's job is the meaning-and-emotion layer of natural speech; it does not ship a
 speech recognizer. The `whisper` adapter is one way to produce the transcript half of
@@ -88,6 +88,36 @@ plenty.
 The `.en` variants are English-only and slightly more accurate on English than their
 multilingual counterparts of the same size. Pick a multilingual model if you speak
 other languages.
+
+## Model Management (`subtext model`)
+
+Once you have a whisper.cpp binary, `subtext model` manages the ggml model files
+themselves — checksum-verified, consent-gated, and written atomically so an
+interrupted download never leaves a half-model that whisper.cpp would try to load:
+
+```sh
+subtext model list                     # what is installed, and where
+subtext model download base.en --yes   # fetch a model (~142 MB for base.en), one time
+```
+
+`subtext model list` prints every model Subtext knows how to manage (`tiny.en`,
+`base.en`, `small.en` — see `src/transcribe/models.json`), whether it is installed, and
+its size. `subtext model download <id>` refuses to fetch anything until you pass
+`--yes`; without it, it prints exactly what it would download and where, and exits
+non-zero. Every download's SHA-256 is checked against `src/transcribe/models.json`
+before the file is kept — a checksum mismatch discards the download and throws, rather
+than installing a tampered or corrupt model.
+
+By default, models are installed to `~/.subtext/models`. Override the directory with:
+
+| Variable | Purpose |
+| --- | --- |
+| `SUBTEXT_MODEL_DIR` | Directory `subtext model` installs into and reads from. Defaults to `~/.subtext/models`. |
+
+`subtext dictate --engine whisper` (the default engine) resolves a model in this order:
+`SUBTEXT_WHISPER_MODEL` if set, otherwise the `base.en` model installed by `subtext model
+download` in `SUBTEXT_MODEL_DIR`/`~/.subtext/models`. If neither is present, `subtext
+doctor` reports `whisper` as not-ready and names the exact command to fix it.
 
 ## Configure
 

@@ -66,7 +66,11 @@ assistant you already use does the reasoning; Subtext just hands it the evidence
 The transcript still comes from the platform's native voice model, OS dictation, browser dictation,
 whisper, or your chosen host. Subtext never replaces speech recognition — it adds the missing
 natural-speech context beside the transcript so the assistant can reason over what was meant, not only
-what was written down. Nothing is sent over the network: it is model-free, offline, and zero-dependency.
+what was written down. The prosody engine itself never touches the network on any engine or
+configuration: it is model-free, offline, and zero-dependency. That claim covers only the prosody
+half — the transcript half can leave the device when you opt into it, via the browser's Web Speech
+API (Chrome/Edge send audio to Google) or the opt-in cloud STT engine (`--engine cloud`, your own
+key); Subtext never does that on your behalf.
 
 ## What It Reads
 
@@ -137,6 +141,14 @@ Flags: emphasis (0.62): strong stress on "whole"
 ship the whole thing
 ```
 
+Then speak one for real — this records four seconds, transcribes it locally, and prints the enriched
+prompt:
+
+```sh
+npx yell-at-ai model download base.en --yes   # one time, ~142 MB, asks first
+npx yell-at-ai dictate --target clipboard
+```
+
 ## Install
 
 Zero runtime dependencies. Run it on demand with `npx`, or install the CLI globally — both `yell-at-ai`
@@ -168,12 +180,13 @@ An honest cut of what is shipped versus what is a working foundation today.
 | Surface | State | Notes |
 | --- | --- | --- |
 | Prosody engine (`vocalcontext/v1`) | 🟢 shipped | model-free DSP, alignment, affect, flags; offline; cross-platform green on Windows, macOS, Linux |
-| CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `demo`, `analyze`, `capture`, `session`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
+| CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `demo`, `analyze`, `capture`, `session`, `dictate`, `model`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
 | Web demo | 🟢 shipped | [yell-at-ai.vercel.app](https://yell-at-ai.vercel.app) — mic → live dictation → client-side `vocalcontext/v1` → enriched prompt; static app in `apps/web/` |
 | Editor adapters (Claude Code, Codex, VS Code) | 🟡 templates — manual install | `install-adapter` generates the bundle + host config; you wire it into the host yourself; no marketplace packages yet |
 | HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
 | Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |
-| Offline whisper STT adapter | 🟡 working foundation | pluggable `whisper` adapter with binary auto-detect + docs; multi-platform binary bundling and model auto-download are follow-ups |
+| Offline whisper STT | 🟢 shipped | `subtext dictate --engine whisper`; `subtext model download base.en --yes` installs a checksum-verified model. No weights bundled, no egress. |
+| Cloud STT (opt-in) | 🟢 shipped | `--engine cloud --provider groq\|deepgram` with your own key. Faster, returns real word timings, and clearly labelled as sending audio to the provider. |
 
 The production target remains a smaller Rust/Tauri core. This repo is the executable reference and test
 oracle: the engine that every surface reuses.

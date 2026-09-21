@@ -6,7 +6,10 @@
 // Binary discovery order:
 //   1. env SUBTEXT_WHISPER_BIN (explicit override; must point at a real file)
 //   2. the first of `whisper`, `whisper-cli`, `main` found on PATH
-//      (PATHEXT-aware on Windows so `whisper.exe`/`main.exe` resolve)
+//      (PATHEXT-aware on Windows, restricted to .COM/.EXE/.BAT/.CMD so a
+//      generic name like `main` can never resolve to a same-named Control
+//      Panel applet, MMC snap-in, or script host file that happens to share
+//      an extension listed in PATHEXT)
 // If none resolve, throw the actionable not-found error pointing at docs/WHISPER.md.
 //
 // Model discovery (optional): SUBTEXT_WHISPER_MODEL points at a ggml model file
@@ -29,15 +32,17 @@ export const WHISPER_NOT_FOUND_MESSAGE =
   "whisper binary not found; set SUBTEXT_WHISPER_BIN or install whisper.cpp - see docs/WHISPER.md";
 
 // Resolve a usable whisper binary path, or throw the actionable not-found error.
-// `env` is injectable so the resolver is testable offline.
-export function resolveWhisperBinary(env = process.env) {
+// `env` is injectable so the resolver is testable offline. `platform` is
+// injectable too (defaults to process.platform) so PATHEXT handling can be
+// exercised hermetically on any CI runner regardless of its real OS.
+export function resolveWhisperBinary(env = process.env, platform = process.platform) {
   const override = env.SUBTEXT_WHISPER_BIN;
   if (override) {
     if (isExecutableFile(override)) return override;
     throw new Error(WHISPER_NOT_FOUND_MESSAGE);
   }
 
-  const found = findOnPath(WHISPER_BINARY_NAMES, env);
+  const found = findOnPath(WHISPER_BINARY_NAMES, env, platform);
   if (found) return found;
 
   throw new Error(WHISPER_NOT_FOUND_MESSAGE);
@@ -223,10 +228,10 @@ function spawnWhisper(binary, args, env) {
   });
 }
 
-function findOnPath(names, env) {
+function findOnPath(names, env, platform = process.platform) {
   const pathValue = env.PATH ?? env.Path ?? "";
   const dirs = pathValue.split(delimiter).filter(Boolean);
-  const exts = pathExtensions(env);
+  const exts = pathExtensions(env, platform);
   for (const dir of dirs) {
     for (const name of names) {
       for (const ext of exts) {
@@ -238,10 +243,22 @@ function findOnPath(names, env) {
   return null;
 }
 
-function pathExtensions(env) {
-  if (process.platform !== "win32") return [""];
+// Extensions Windows will actually execute a process from directly. PATHEXT on
+// a real machine can also list non-executable shell-associated extensions such
+// as .CPL (Control Panel applets), .MSC (MMC snap-ins), .JS/.VBS (script host
+// files) - spawning one of those as "whisper" fails baffling-ly rather than
+// cleanly. A real whisper.cpp release for Windows is always a .exe, so
+// restricting to this set cannot lose a legitimate binary.
+const EXECUTABLE_EXTENSIONS = new Set([".COM", ".EXE", ".BAT", ".CMD"]);
+
+function pathExtensions(env, platform = process.platform) {
+  if (platform !== "win32") return [""];
   const pathext = env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD";
-  return ["", ...pathext.split(delimiter).filter(Boolean)];
+  const allowed = pathext
+    .split(delimiter)
+    .filter(Boolean)
+    .filter((ext) => EXECUTABLE_EXTENSIONS.has(ext.toUpperCase()));
+  return ["", ...allowed];
 }
 
 function isExecutableFile(filePath) {
