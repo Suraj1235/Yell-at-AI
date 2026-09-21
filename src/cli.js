@@ -24,6 +24,7 @@ import { renderVocalContext } from "./render/text.js";
 import { startHttpServer } from "./server/http.js";
 import { startMcpServer } from "./server/mcp.js";
 import { transcribeWithCommand } from "./transcribe/command.js";
+import { transcribe, getEngine } from "./transcribe/index.js";
 import { normalizeTranscriptEnvelope, parseTranscriptPayload } from "./transcript/envelope.js";
 
 export async function runCli(argv = []) {
@@ -115,6 +116,21 @@ export async function runCli(argv = []) {
         fileHint: " Use --audio-out for the recorded WAV.",
         clipboard: "subtext: recorded natural speech and copied enriched prompt to clipboard\n",
         paste: "subtext: recorded natural speech, copied enriched prompt, and pasted into active app\n"
+      });
+      return;
+    }
+
+    if (command === "dictate") {
+      const args = parseArgs(rest);
+      const { report, contract, engine } = await dictateFromArgs(args);
+      const output = args.format === "json"
+        ? `${JSON.stringify({ capture: report, engine, contract }, null, 2)}\n`
+        : renderVocalContext(contract, { verbosity: args.verbosity ?? "subtle" });
+
+      await deliverOutput("dictate", output, args.target ?? "stdout", args, {
+        fileHint: " Use --audio-out for the recorded WAV.",
+        clipboard: "subtext: dictated turn copied to clipboard\n",
+        paste: "subtext: dictated turn copied and pasted into active app\n"
       });
       return;
     }
@@ -276,6 +292,7 @@ Commands:
   serve             Run the local HTTP analysis server (no audio leaves the machine)
   capture           Record audio from the mic, then optionally analyze it
   session           Record one natural-speech turn and emit the enriched prompt
+  dictate           Record a turn, transcribe it, and deliver the enriched prompt (the full loop)
   ptt               Push-to-talk loop: record, analyze, and deliver multiple turns
   handoff           Analyze a turn and deliver the enriched prompt (clipboard/paste/stdout/file)
   calibrate         Build or update a neutral-voice baseline from one or more samples
@@ -314,6 +331,10 @@ Examples:
   subtext capture --duration 4 --text "..." --format prompt
   subtext session --duration 4 --transcript-command "host-transcript {audio}" [--target stdout|clipboard|paste|file]
   subtext session --duration 4 --transcript-command "host-transcript --json {audio}" --require-word-timings
+  subtext dictate                                   # record 4s, transcribe with local whisper, print
+  subtext dictate --target paste                    # ...and paste it into the focused app
+  subtext dictate --engine cloud --provider groq    # opt in to cloud STT (needs SUBTEXT_CLOUD_API_KEY)
+  subtext dictate --audio turn.wav                  # transcribe and analyze an existing recording
   subtext ptt --turns 3 --duration 4 --transcript-command "host-transcript --json {audio}" --target paste
   subtext handoff --audio turn.wav --text "..." [--target clipboard|paste|stdout|file]
   subtext render --file contract.json [--verbosity raw|subtle|full]
@@ -381,6 +402,44 @@ async function runNaturalSpeechTurn(args, commandName, turn = null) {
 
   const contract = await analyzeCapturedTurn(report, transcript, args);
   return { report, contract };
+}
+
+// Engine precedence for `dictate`: explicit flag, then environment, then the
+// shipped offline default. getEngine throws with the available list when the id
+// is unknown, so a typo never silently falls back to something that uploads audio.
+export function resolveDictateEngine(args, env = process.env) {
+  const id = args.engine ?? env.SUBTEXT_STT_ENGINE ?? "whisper";
+  getEngine(id);
+  return id;
+}
+
+// The product loop in one function: get audio (recorded now, or a file the caller
+// already has), get words (from --text, or from the selected STT engine), then run
+// the same analyze + deliver path every other command uses.
+async function dictateFromArgs(args) {
+  const engine = resolveDictateEngine(args);
+
+  const report = args.audio
+    ? { schema: "subtext/capture/v1", audioPath: args.audio, recorder: "provided" }
+    : await captureFromArgs(args);
+
+  // An explicit --text short-circuits STT; it is how the tests and the offline
+  // demo path stay engine-independent.
+  let transcript = await transcriptFromArgs(args, "dictate_text", report.audioPath);
+
+  if (!transcript) {
+    const envelope = await transcribe(report.audioPath, {
+      adapter: engine,
+      command: args["transcript-command"],
+      apiKey: args["api-key"],
+      provider: args.provider,
+      model: args.model
+    });
+    transcript = normalizeTranscriptEnvelope(envelope, transcriptOverrides(args, `dictate_${engine}`));
+  }
+
+  const contract = await analyzeCapturedTurn(report, transcript, args);
+  return { report, contract, engine };
 }
 
 async function runPttLoop(args) {
