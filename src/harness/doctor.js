@@ -138,7 +138,15 @@ export async function runHarnessDoctor(options = {}) {
       ready: readyCount,
       notReady: harnesses.length - readyCount
     },
-    harnesses
+    harnesses,
+    // STT readiness belongs in the report, not only in the text renderer. The
+    // machine-readable output is exactly the consumer that needs the
+    // machine-readable egress registry: a CI gate or another surface asking
+    // "which engines can run here, and which of them send audio off the box"
+    // reads --format json. Passing options.env/platform straight through means
+    // undefined falls back to the live environment, while a caller (or a test)
+    // can pin both.
+    stt: checkSttReadiness(options.env, options.platform)
   };
 }
 
@@ -159,10 +167,11 @@ export function renderHarnessDoctor(report) {
   }
 
   // Append the STT readiness section so `subtext doctor` reports engine
-  // readiness and network egress without any change to the CLI's call site:
-  // renderHarnessDoctor is handed only the harness report today, so this
-  // computes its own readiness snapshot off the live environment.
-  lines.push(renderSttReadiness(checkSttReadiness()));
+  // readiness and network egress. Prefer the snapshot the report already
+  // carries: recomputing here would render off the live environment even when
+  // the report was built against an injected env/platform. The fallback keeps
+  // a hand-built report (no `stt` key) renderable.
+  lines.push(renderSttReadiness(report.stt ?? checkSttReadiness()));
 
   return `${lines.join("\n")}\n`;
 }
