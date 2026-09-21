@@ -24,6 +24,7 @@ import { transcribeWithWhisper } from "./whisper.js";
 
 // Adapter names known to this interface. "webspeech" is a browser-only contract.
 export const ADAPTERS = ["command", "whisper", "webspeech"];
+export { ENGINES, EGRESS_LEVELS, getEngine, listEngines, isOfflineEngine } from "./engines.js";
 export const DEFAULT_ADAPTER = "command";
 
 // transcribe(input, opts) -> Promise<envelope>
