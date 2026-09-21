@@ -149,9 +149,9 @@ export async function runCli(argv = []) {
 
     if (command === "model") {
       const [subcommand = "list", ...modelRest] = rest;
-      const args = parseArgs(modelRest);
 
       if (subcommand === "list") {
+        const args = parseArgs(modelRest);
         const rows = listModels();
         if (args.format === "json") {
           process.stdout.write(`${JSON.stringify({ directory: modelDirectory(), models: rows }, null, 2)}\n`);
@@ -167,8 +167,7 @@ export async function runCli(argv = []) {
       }
 
       if (subcommand === "download") {
-        const id = modelRest.find((value) => !value.startsWith("--")) ?? "base.en";
-        const consent = args.yes === true || args.yes === "true";
+        const { id, consent } = parseModelDownloadArgs(modelRest);
         if (!consent) {
           const model = listModels().find((row) => row.id === id);
           process.stderr.write(
@@ -398,6 +397,38 @@ function formatBytes(bytes) {
   if (!bytes) return "unknown size";
   const mb = bytes / (1024 * 1024);
   return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
+
+// Dedicated arg handling for `model download`, local to this command rather
+// than the shared parseArgs (which every other command depends on). The
+// shared parser binds the token after any --flag as that flag's value, so
+// "model download --yes tiny.en" would bind args.yes to the string "tiny.en"
+// instead of granting consent - --yes would be silently ignored whenever it
+// precedes the model id. Here --yes is a boolean flag: it means true on its
+// own no matter where it appears relative to the model id, and only reads an
+// explicit override when the exact literal "true"/"false" immediately
+// follows it - so "--yes false" and "--yes=false" both still refuse. Consent
+// is never widened to "any --yes token means yes".
+function parseModelDownloadArgs(tokens) {
+  let consent = false;
+  let id = null;
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token === "--yes") {
+      const next = tokens[i + 1];
+      if (next === "true" || next === "false") {
+        consent = next === "true";
+        i += 1;
+      } else {
+        consent = true;
+      }
+      continue;
+    }
+    if (id === null && !token.startsWith("--")) {
+      id = token;
+    }
+  }
+  return { id: id ?? "base.en", consent };
 }
 
 function renderAdapterInstall(report) {

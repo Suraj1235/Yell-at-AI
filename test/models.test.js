@@ -4,6 +4,8 @@ import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   MODELS,
   modelDirectory,
@@ -11,6 +13,50 @@ import {
   listModels,
   downloadModel
 } from "../src/transcribe/models.js";
+
+const CLI_BIN = fileURLToPath(new URL("../bin/subtext.js", import.meta.url));
+
+// Drives `subtext model download ...` as a real child process (process.execPath,
+// never the bare "node" string, which on Windows resolves against the child's
+// own PATH rather than this process's interpreter). We never let a real
+// network download happen: the CLI writes its "subtext: downloading
+// <id>..." progress line synchronously, *before* it calls downloadModel(),
+// only once consent has been granted - as soon as that line (or the refusal
+// message, or a natural exit) is observed, the child is killed and we assert
+// on that consent decision, never on a completed download.
+function runModelDownload(args, { env = {} } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [CLI_BIN, "model", "download", ...args], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...env }
+    });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      child.kill();
+      resolve(result);
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+      // Only the consent-granted path needs an early kill (it is about to
+      // touch the network); the refusal path never does, so it is always
+      // left to exit naturally and report its real exit code below.
+      if (/subtext: downloading \S+\.\.\./.test(stderr)) {
+        finish({ consented: true, code: null, stdout, stderr });
+      }
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => finish({ consented: false, code, stdout, stderr }));
+  });
+}
 
 test("the catalog has real-looking checksums and sizes for every model", () => {
   const ids = Object.keys(MODELS);
@@ -98,4 +144,41 @@ test("downloadModel writes the file when the checksum matches", async () => {
   });
 
   assert.equal(await readFile(path, "utf8"), "pretend-model-bytes");
+});
+
+test("CLI: model download <id> --yes consents (id before --yes)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "subtext-models-"));
+  const result = await runModelDownload(["tiny.en", "--yes"], { env: { SUBTEXT_MODEL_DIR: dir } });
+  assert.equal(result.consented, true, `expected consent, got stderr: ${result.stderr}`);
+});
+
+test("CLI: model download --yes <id> consents (--yes before id, the regression case)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "subtext-models-"));
+  const result = await runModelDownload(["--yes", "tiny.en"], { env: { SUBTEXT_MODEL_DIR: dir } });
+  assert.equal(result.consented, true, `expected consent, got stderr: ${result.stderr}`);
+  assert.match(result.stderr, /downloading tiny\.en\.\.\./, "the id must still resolve to tiny.en, not be swallowed by --yes");
+});
+
+test("CLI: model download <id> with no --yes refuses and exits non-zero", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "subtext-models-"));
+  const result = await runModelDownload(["tiny.en"], { env: { SUBTEXT_MODEL_DIR: dir } });
+  assert.equal(result.consented, false);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Re-run with --yes to confirm/);
+});
+
+test("CLI: model download --yes=false refuses (never widens consent to any --yes token)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "subtext-models-"));
+  const result = await runModelDownload(["--yes=false"], { env: { SUBTEXT_MODEL_DIR: dir } });
+  assert.equal(result.consented, false);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Re-run with --yes to confirm/);
+});
+
+test("CLI: model download --yes false (space-separated explicit false) refuses", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "subtext-models-"));
+  const result = await runModelDownload(["--yes", "false"], { env: { SUBTEXT_MODEL_DIR: dir } });
+  assert.equal(result.consented, false);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Re-run with --yes to confirm/);
 });
