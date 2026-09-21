@@ -141,13 +141,25 @@ Flags: emphasis (0.62): strong stress on "whole"
 ship the whole thing
 ```
 
-Then speak one for real — this records four seconds, transcribes it locally, and prints the enriched
-prompt:
+Then speak one for real. `dictate` records five seconds, transcribes it locally, and prints the
+enriched prompt — but unlike `demo`, it needs three things on your machine first:
+
+1. **A microphone recorder** — `ffmpeg`, `arecord`, or `sox` on your `PATH` (or your own
+   `--record-command`). See [docs/DESKTOP_CAPTURE.md](docs/DESKTOP_CAPTURE.md).
+2. **A whisper.cpp binary** — on your `PATH`, or pointed at by `SUBTEXT_WHISPER_BIN`. No weights or
+   binaries are bundled. See [docs/WHISPER.md](docs/WHISPER.md).
+3. **A model** — one consent-gated, checksum-verified download.
+
+`doctor` reports exactly these three and tells you what is missing, so run it first:
 
 ```sh
+npx yell-at-ai doctor                         # what's installed, and which engines send audio where
 npx yell-at-ai model download base.en --yes   # one time, ~142 MB, asks first
-npx yell-at-ai dictate --target clipboard
+npx yell-at-ai dictate --target clipboard     # records 5s (override with --duration)
 ```
+
+Bundling the whisper binary so this works with no external setup is a follow-up, not something this
+release does.
 
 ## Install
 
@@ -185,7 +197,7 @@ An honest cut of what is shipped versus what is a working foundation today.
 | Editor adapters (Claude Code, Codex, VS Code) | 🟡 templates — manual install | `install-adapter` generates the bundle + host config; you wire it into the host yourself; no marketplace packages yet |
 | HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
 | Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |
-| Offline whisper STT | 🟢 shipped | `subtext dictate --engine whisper`; `subtext model download base.en --yes` installs a checksum-verified model. No weights bundled, no egress. |
+| Offline whisper STT | 🟢 shipped | `subtext dictate --engine whisper`; `subtext model download base.en --yes` installs a checksum-verified model. No weights bundled, no egress. You supply the whisper.cpp binary and a recorder — `doctor` reports both; bundling them is a follow-up. |
 | Cloud STT (opt-in) | 🟢 shipped | `--engine cloud --provider groq\|deepgram` with your own key. Faster, returns real word timings, and clearly labelled as sending audio to the provider. |
 
 The production target remains a smaller Rust/Tauri core. This repo is the executable reference and test

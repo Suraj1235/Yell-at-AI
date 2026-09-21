@@ -376,7 +376,7 @@ Examples:
   subtext capture --duration 4 --text "..." --format prompt
   subtext session --duration 4 --transcript-command "host-transcript {audio}" [--target stdout|clipboard|paste|file]
   subtext session --duration 4 --transcript-command "host-transcript --json {audio}" --require-word-timings
-  subtext dictate                                   # record 4s, transcribe with local whisper, print
+  subtext dictate                                   # record 5s, transcribe with local whisper, print
   subtext dictate --target paste                    # ...and paste it into the focused app
   subtext dictate --engine cloud --provider groq    # opt in to cloud STT (needs SUBTEXT_CLOUD_API_KEY)
   subtext dictate --audio turn.wav                  # transcribe and analyze an existing recording
