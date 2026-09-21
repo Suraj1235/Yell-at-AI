@@ -17,8 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Privacy copy no longer claims audio never leaves the device on paths that transcribe through the
-  browser's Web Speech API, which uploads audio to Google in Chrome and Edge. A test now guards this.
+- Privacy copy no longer makes an unqualified claim that recordings stay on the device on paths that
+  transcribe through the browser's Web Speech API, which uploads audio to Google in Chrome and Edge.
+  A test now guards this across every user-facing file the npm tarball ships.
 - `resolveWhisperBinary` no longer resolves a same-named Control Panel applet, MMC snap-in, or
   script-host file (e.g. `main.CPL`) as the whisper binary on a Windows machine whose PATHEXT lists
   those extensions. Binary resolution is now restricted to genuinely executable extensions
@@ -40,6 +41,9 @@ Initial release: Subtext as an offline, model-free meaning-and-emotion layer for
   thresholds.
 - Evaluation suites: golden fixtures, external emotion corpus, wild YouTube corpus, and an LLM-judge
   harness comparing transcript-only vs. vocal-context prompts.
-- Client-side web demo (`apps/web/`) for live dictation with no audio leaving the browser.
+- Client-side web demo (`apps/web/`) for live dictation. The prosody analysis runs entirely in the
+  browser with no model weights and no server. Transcription is the exception: the page uses the
+  browser's Web Speech API, which in Chrome and Edge sends your audio to Google for recognition. A
+  persistent badge above the recorder names the engine and the vendor before you record.
 
 [0.1.0]: https://github.com/manishgit61332/Yell-at-AI/releases/tag/v0.1.0
