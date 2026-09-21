@@ -111,7 +111,8 @@ flowchart LR
 
 **In the browser** — no install. Open **[yell-at-ai.vercel.app](https://yell-at-ai.vercel.app)**, allow
 the mic, and speak a line with one word leaned on. You see the live transcript plus the vocal-context
-Subtext reads from your delivery, all client-side — your audio never leaves the page.
+Subtext reads from your delivery, computed client-side. Transcription uses the browser's own Web
+Speech API (in Chrome and Edge that sends audio to Google); the prosody layer never leaves the page.
 
 > **Web demo:** [https://yell-at-ai.vercel.app](https://yell-at-ai.vercel.app) — fully client-side.
 > Prefer local? Run it from [`apps/web`](apps/web) — see [apps/web/README.md](apps/web/README.md).

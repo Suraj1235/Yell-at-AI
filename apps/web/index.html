@@ -211,16 +211,24 @@
 
   <!-- ───────────────────────── Privacy ───────────────────────── -->
   <section class="privacy" id="privacy" aria-labelledby="privacy-title">
-    <h2 id="privacy-title">Your voice never leaves this tab.</h2>
+    <h2 id="privacy-title">Your prosody never leaves this tab.</h2>
     <p>
-      Capture, transcription, signal processing, and the contract are all computed in your browser.
-      There is no server to send audio to. The same analysis engine ships in the command-line tool,
-      the editor adapters, and the native app — this page is just the front door.
+      The part that makes this product work — the signal processing, the emphasis scoring, the
+      affect reading, the whole <code>vocalcontext/v1</code> contract — is computed in your browser
+      from your recording. There is no server behind it and no model weights to load. The same
+      engine ships in the command-line tool, the editor adapters, and the desktop app.
+    </p>
+    <p>
+      <strong>Transcription is the honest exception.</strong> To turn your speech into words, this
+      page uses your browser's built-in Web Speech API — and in Chrome and Edge, that uploads your
+      audio to Google's servers for recognition. We will not pretend otherwise. The badge above the
+      recorder always names the engine in use.
     </p>
     <ul class="privacy-points" role="list">
-      <li><span aria-hidden="true">∅</span> No upload — audio stays in memory</li>
-      <li><span aria-hidden="true">∅</span> No API key, no account</li>
-      <li><span aria-hidden="true">∅</span> No bundled model weights</li>
+      <li><span aria-hidden="true">∅</span> Prosody analysis is local — always, on every engine</li>
+      <li><span aria-hidden="true">∅</span> No API key, no account, no model weights</li>
+      <li><span aria-hidden="true">⚠</span> Web Speech transcription sends audio to Google</li>
+      <li><span aria-hidden="true">✓</span> Want zero egress? Use the desktop app, or type the transcript</li>
     </ul>
   </section>
 </main>
@@ -231,7 +239,7 @@
     A prosody evidence layer for assistants that should listen better.
   </p>
   <p class="foot-by">Built by Suraj Kuncham &amp; Manish Sampathirao · source-available for noncommercial use</p>
-  <p class="foot-fine">Live transcription works best in Chrome &amp; Edge. Everywhere else, type your transcript — the delivery still gets read from your recording.</p>
+  <p class="foot-fine">Live transcription uses the browser's Web Speech API and works best in Chrome &amp; Edge, where the audio is sent to Google for recognition. Everywhere else, type your transcript — the delivery is still read from your recording, on your device.</p>
 </footer>
 
 <script type="module" src="./app.js"></script>
