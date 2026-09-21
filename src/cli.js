@@ -475,23 +475,37 @@ async function dictateFromArgs(args) {
     ? { schema: "subtext/capture/v1", audioPath: args.audio, recorder: "provided" }
     : await captureFromArgs(args);
 
-  // An explicit --text short-circuits STT; it is how the tests and the offline
-  // demo path stay engine-independent.
-  let transcript = await transcriptFromArgs(args, "dictate_text", report.audioPath);
+  // Everything below this point runs AFTER audio is already safely on disk.
+  // Fail open: if transcription or analysis blows up here, the recording is
+  // never deleted, so the failure must say where it landed and how to recover
+  // it, rather than reading like the user's words are gone. A caller-supplied
+  // --audio file was already the user's own, so it gets no such rewrite - only
+  // audio *this command captured* is called out as recoverable.
+  try {
+    // An explicit --text short-circuits STT; it is how the tests and the offline
+    // demo path stay engine-independent.
+    let transcript = await transcriptFromArgs(args, "dictate_text", report.audioPath);
 
-  if (!transcript) {
-    const envelope = await transcribe(report.audioPath, {
-      adapter: engine,
-      command: args["transcript-command"],
-      apiKey: args["api-key"],
-      provider: args.provider,
-      model: args.model
-    });
-    transcript = normalizeTranscriptEnvelope(envelope, transcriptOverrides(args, `dictate_${engine}`));
+    if (!transcript) {
+      const envelope = await transcribe(report.audioPath, {
+        adapter: engine,
+        command: args["transcript-command"],
+        apiKey: args["api-key"],
+        provider: args.provider,
+        model: args.model
+      });
+      transcript = normalizeTranscriptEnvelope(envelope, transcriptOverrides(args, `dictate_${engine}`));
+    }
+
+    const contract = await analyzeCapturedTurn(report, transcript, args);
+    return { report, contract, engine };
+  } catch (error) {
+    if (args.audio) throw error;
+    throw new Error(
+      `${error.message} Your recording was saved to ${report.audioPath} and was NOT deleted - ` +
+      `retry with: subtext analyze --audio ${report.audioPath} --text "<what you said>"`
+    );
   }
-
-  const contract = await analyzeCapturedTurn(report, transcript, args);
-  return { report, contract, engine };
 }
 
 async function runPttLoop(args) {
