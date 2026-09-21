@@ -13,10 +13,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 // npm tarball. A list that enumerates what actually ships cannot develop that
 // hole again: adding a doc to the package automatically puts it under guard.
 //
-// npm always includes README.md and LICENSE whatever "files" says, so README.md
-// is added explicitly. src/cli.js is included because its help text is
-// user-facing copy that happens to live in a .js file.
-const ALWAYS_SHIPPED = ["README.md", "src/cli.js"];
+// npm always includes README.md whatever "files" says, so README.md is added
+// explicitly. src/cli.js is included because its help text is user-facing
+// copy that happens to live in a .js file. apps/web/app.js is included for the
+// same reason: it holds the engine-badge copy, and the directory sweep below
+// only picks up .md/.html, so a .js file needs to be listed here to be swept.
+const ALWAYS_SHIPPED = ["README.md", "src/cli.js", "apps/web/app.js"];
 
 // Pages that must never fall out of the scan. If a future edit to "files"
 // stops shipping one of these, that is a packaging bug and this list catches
