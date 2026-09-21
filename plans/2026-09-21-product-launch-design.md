@@ -167,21 +167,21 @@ rejects an accelerator the OS refuses to register rather than failing silently.
 
 ## 6. Phases
 
-Each phase ends green and shippable. Day figures are working days of build.
+Each phase ends green and shippable. Figures are **agent execution time**, not human working days. The non-compressible items in this program are external paperwork (certificate issuance, store enrolment, credentials, repo admin), not engineering.
 
-### Phase 0 — Truth and unblock · ~1 day
+### Phase 0 — Truth and unblock · ~30 min
 
 Fix the false privacy claim everywhere it appears. Merge the three stale dependabot PRs. Repo public
 (**requires @manishgit61332**). `npm publish yell-at-ai@0.1.0`. Cut GitHub release v0.1.0. Repo
 description and topics. *Outcome: the thing is actually public, and every sentence in it is true.*
 
-### Phase 1 — Real STT · ~2 days
+### Phase 1 — Real STT · ~1–2 hours
 
 Wire `transcribe()` into the CLI as `subtext dictate`. Add the `cloud` adapter (Groq and Deepgram, BYO
 key). Add the `egress` field and the honesty test. Model manager: download `ggml-base.en` on consent,
 verify the checksum, resumable. *Outcome: end-to-end voice → enriched prompt with no external setup.*
 
-### Phase 2 — `apps/shell` and the Wispr-Flow desktop app · ~6 days
+### Phase 2 — `apps/shell` and the Wispr-Flow desktop app · ~4–8 hours
 
 Extract the shared shell. Frameless overlay pill with waveform and live prosody chips.
 Press-and-hold global hotkey. WebView capture. whisper sidecar via Tauri `externalBin` (win-x64,
@@ -189,13 +189,13 @@ mac-arm64, mac-x64, linux-x64). Auto-insert with per-app rules. History (SQLite)
 Onboarding and calibration. Tray, autostart, icons. `bundle.active: true`. *Outcome: the hero
 product.*
 
-### Phase 3 — Web and PWA · ~2 days
+### Phase 3 — Web and PWA · ~1–2 hours
 
 The same shell with `platform.web.js`. Installable PWA, offline app shell, iOS/Android viewport and
 safe-areas, share-sheet handoff, IndexedDB history, honest engine badge, landing page above it.
 *Outcome: Android, iPhone, and every browser covered at launch.*
 
-### Phase 4 — Unbreakable, plus launch assets · ~3 days
+### Phase 4 — Unbreakable, plus launch assets · ~2–3 hours of build
 
 Signed installers (Authenticode `.msi`, notarized `.dmg`) built in CI. Auto-update. Crash and error
 surfaces that never lose a user's words. The **fearless gauntlet** (§7). Demo video, Product Hunt
@@ -205,7 +205,7 @@ copy, screenshots, docs site. *Outcome: launch.*
 
 Android IME keyboard, iOS keyboard extension, Rust core port (M1).
 
-**Roughly 14 working days to Product Hunt** for Phases 0–4. Phases 1–3 are largely parallelizable.
+**Roughly one focused day of build for Phases 0–4.** What sets the launch date is not build time — it is Authenticode/Apple enrolment lead time, npm credentials, and @manishgit61332 flipping the repo public. Shipping the first release unsigned removes the signing gate entirely, which is a legitimate choice for a free and open-source launch.
 
 ---
 
