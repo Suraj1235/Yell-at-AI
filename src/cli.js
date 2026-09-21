@@ -24,7 +24,7 @@ import { renderVocalContext } from "./render/text.js";
 import { startHttpServer } from "./server/http.js";
 import { startMcpServer } from "./server/mcp.js";
 import { transcribeWithCommand } from "./transcribe/command.js";
-import { transcribe, getEngine } from "./transcribe/index.js";
+import { transcribe, ADAPTERS, ENGINES, listEngines } from "./transcribe/index.js";
 import { listModels, downloadModel, modelDirectory } from "./transcribe/models.js";
 import { normalizeTranscriptEnvelope, parseTranscriptPayload } from "./transcript/envelope.js";
 
@@ -487,13 +487,37 @@ async function runNaturalSpeechTurn(args, commandName, turn = null) {
   return { report, contract };
 }
 
+// The engines `dictate` can actually run: registered for the "node" runtime AND
+// backed by a dispatchable adapter in src/transcribe/index.js.
+//
+// ENGINES is the registry for every surface, so it also lists browser-only
+// engines (whisper-wasm, webspeech). Those are correctly registered - the web
+// app renders from the same registry - but they have no Node implementation.
+// Validating against the full registry meant `dictate --engine whisper-wasm`
+// passed, RECORDED AUDIO, and only then died on a second, different "available
+// engines" list from transcribe() - wrapped by the fail-open handler into "your
+// recording was saved", a recovery message for a typo. One list, checked once,
+// before capture.
+export function dictatableEngines() {
+  return listEngines("node")
+    .map((engine) => engine.id)
+    .filter((id) => ADAPTERS.includes(id));
+}
+
 // Engine precedence for `dictate`: explicit flag, then environment, then the
-// shipped offline default. getEngine throws with the available list when the id
-// is unknown, so a typo never silently falls back to something that uploads audio.
+// shipped offline default. An unusable id throws here - before any capture -
+// with the one list that is true, so a typo never silently falls back to
+// something that uploads audio and never costs the user a recording.
 export function resolveDictateEngine(args, env = process.env) {
   const id = args.engine ?? env.SUBTEXT_STT_ENGINE ?? "whisper";
-  getEngine(id);
-  return id;
+  const usable = dictatableEngines();
+  if (usable.includes(id)) return id;
+
+  const registered = ENGINES[id];
+  const reason = registered
+    ? `The '${id}' engine (${registered.label}) runs in the browser only and has no Node implementation.`
+    : `Unknown transcribe engine: ${id}.`;
+  throw new Error(`${reason} Available: ${usable.join(", ")}.`);
 }
 
 // The product loop in one function: get audio (recorded now, or a file the caller
