@@ -14,7 +14,9 @@ const COPY_FILES = [
   "README.md",
   "docs/QUICKSTART.md",
   "apps/web/index.html",
-  "apps/web/README.md"
+  "apps/web/README.md",
+  "docs/WEB_PREVIEW.md",
+  "docs/NATURAL_SPEECH.md"
 ];
 
 // Absolute claims that are false while any default path uses a vendor recognizer.
