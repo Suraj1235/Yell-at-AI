@@ -324,3 +324,52 @@ test("public entrypoint src/index.js re-exports the transcribe surface", async (
   assert.equal(typeof entrypoint.DEFAULT_ADAPTER, "string");
   assert.equal(typeof entrypoint.resolveWhisperBinary, "function");
 });
+
+test("public entrypoint src/index.js re-exports the STT registry, models, and readiness surface", async () => {
+  // package.json exports is {".": "./src/index.js"} with no subpath patterns,
+  // so anything missing from this module is unreachable to a consumer of the
+  // published package - including the Phase 2/3 surfaces that are supposed to
+  // build the vendor badge off ENGINES. This pins the whole new public surface.
+  const entrypoint = await import("../src/index.js");
+  const engines = await import("../src/transcribe/engines.js");
+  const models = await import("../src/transcribe/models.js");
+  const doctor = await import("../src/harness/doctor.js");
+  const recorder = await import("../src/capture/recorder.js");
+  const whisper = await import("../src/transcribe/whisper.js");
+  const cloud = await import("../src/transcribe/cloud.js");
+
+  // The registry, identity-equal so there is one source of truth, not a copy.
+  assert.equal(entrypoint.ENGINES, engines.ENGINES);
+  assert.equal(entrypoint.EGRESS_LEVELS, engines.EGRESS_LEVELS);
+  assert.equal(entrypoint.getEngine, engines.getEngine);
+  assert.equal(entrypoint.listEngines, engines.listEngines);
+  assert.equal(entrypoint.isOfflineEngine, engines.isOfflineEngine);
+
+  assert.equal(entrypoint.transcribeWithCloud, cloud.transcribeWithCloud);
+  assert.equal(entrypoint.CLOUD_PROVIDERS, cloud.CLOUD_PROVIDERS);
+
+  assert.equal(entrypoint.listModels, models.listModels);
+  assert.equal(entrypoint.downloadModel, models.downloadModel);
+  assert.equal(entrypoint.modelDirectory, models.modelDirectory);
+  assert.equal(entrypoint.resolveInstalledModel, models.resolveInstalledModel);
+
+  assert.equal(entrypoint.checkSttReadiness, doctor.checkSttReadiness);
+  assert.equal(entrypoint.renderSttReadiness, doctor.renderSttReadiness);
+
+  assert.equal(entrypoint.findRecorderOnPath, recorder.findRecorderOnPath);
+  assert.equal(entrypoint.resolveWindowsAudioDevice, recorder.resolveWindowsAudioDevice);
+  assert.equal(entrypoint.resolveWhisperModel, whisper.resolveWhisperModel);
+
+  // A consumer can read egress off the entrypoint alone - the thing the badge
+  // and any CI gate actually need.
+  assert.equal(entrypoint.getEngine("webspeech").egress, "vendor");
+  assert.ok(entrypoint.getEngine("webspeech").vendor.length > 0);
+});
+
+test("the entrypoint keeps the mutable model catalog internal", async () => {
+  // MODELS is only shallow-frozen, so exporting it would let a consumer rewrite
+  // a pinned sha256 or url at runtime. listModels() is the supported read path.
+  const entrypoint = await import("../src/index.js");
+  assert.equal(entrypoint.MODELS, undefined);
+  assert.equal(typeof entrypoint.listModels, "function");
+});
