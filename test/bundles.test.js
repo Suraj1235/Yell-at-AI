@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -24,7 +24,12 @@ test("buildAdapterBundles emits relative, forward-slash bundle paths on every pl
 });
 
 test("buildAdapterBundles defaults outRoot to process.cwd(), not the package root (installed-package footgun)", async () => {
-  const scratchCwd = await mkdtemp(join(tmpdir(), "subtext-bundles-cwd-"));
+  // realpath matters here, and only on macOS: os.tmpdir() reports /var/folders/...
+  // but /var is a symlink to /private/var, so once we chdir into the scratch dir
+  // process.cwd() — which is what buildAdapterBundles derives bundle paths from —
+  // reports the resolved /private/var/... form. Comparing the resolved actual
+  // against an unresolved expected fails on every macOS runner.
+  const scratchCwd = await realpath(await mkdtemp(join(tmpdir(), "subtext-bundles-cwd-")));
   const originalCwd = process.cwd();
   process.chdir(scratchCwd);
   try {
