@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, delimiter } from "node:path";
 
 const DEFAULT_SAMPLE_RATE = 16000;
 const DEFAULT_DURATION_SEC = 5;
@@ -39,7 +40,56 @@ export async function recordWav(options = {}) {
   };
 }
 
-export function buildRecorderCommand({ audioPath, durationSec, sampleRate, device, command }) {
+// Recorders we know how to drive, in preference order per platform. ffmpeg is
+// first everywhere it appears because it is the most consistently available and
+// produces a correct WAV header without extra flags.
+const RECORDERS_BY_PLATFORM = {
+  win32: ["ffmpeg", "sox"],
+  linux: ["ffmpeg", "arecord", "sox"],
+  darwin: ["afrecord", "ffmpeg", "sox"]
+};
+
+// Resolve the first known recorder present on PATH, PATHEXT-aware on Windows so
+// `ffmpeg.exe` resolves from the bare name `ffmpeg`. Returns null when none are
+// installed, which the caller turns into an actionable error.
+export function findRecorderOnPath(env = process.env, platform = process.platform) {
+  const candidates = RECORDERS_BY_PLATFORM[platform] ?? ["ffmpeg", "sox"];
+  for (const name of candidates) {
+    // macOS ships afrecord at a fixed absolute path rather than on PATH.
+    if (name === "afrecord" && platform === "darwin") {
+      if (existsSync("/usr/bin/afrecord")) return { name, executable: "/usr/bin/afrecord" };
+      continue;
+    }
+    const resolved = resolveExecutable(name, env, platform);
+    if (resolved) return { name, executable: resolved };
+  }
+  return null;
+}
+
+function resolveExecutable(name, env, platform) {
+  const pathValue = env.PATH ?? env.Path ?? "";
+  const extensions = platform === "win32"
+    ? (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").filter(Boolean)
+    : [""];
+  for (const directory of pathValue.split(delimiter).filter(Boolean)) {
+    for (const extension of extensions) {
+      const candidate = join(directory, `${name}${extension}`);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+export function buildRecorderCommand({
+  audioPath,
+  durationSec,
+  sampleRate,
+  device,
+  command,
+  env = process.env,
+  platform = process.platform,
+  detect = null
+}) {
   if (command) {
     const [executable, ...args] = splitCommandLine(command).map((part) => replacePlaceholders(part, {
       out: audioPath,
@@ -55,33 +105,62 @@ export function buildRecorderCommand({ audioPath, durationSec, sampleRate, devic
     };
   }
 
-  if (process.platform === "darwin") {
-    const args = [
-      "-f",
-      "WAVE",
-      "-d",
-      String(durationSec),
-      "-r",
-      String(sampleRate),
-      "-c",
-      "1"
-    ];
+  const detected = detect ? detect() : findRecorderOnPath(env, platform);
+
+  if (detected?.name === "afrecord") {
+    const args = ["-f", "WAVE", "-d", String(durationSec), "-r", String(sampleRate), "-c", "1"];
     if (device) args.push("-i", String(device));
     args.push(audioPath);
+    return { name: "afrecord", executable: detected.executable, args };
+  }
+
+  if (detected?.name === "ffmpeg") {
+    // Input device syntax is platform-specific; the encode flags are not.
+    const input = platform === "win32"
+      ? ["-f", "dshow", "-i", `audio=${device ?? "default"}`]
+      : platform === "darwin"
+        ? ["-f", "avfoundation", "-i", `:${device ?? "0"}`]
+        : ["-f", "alsa", "-i", String(device ?? "default")];
     return {
-      name: "afrecord",
-      executable: "/usr/bin/afrecord",
-      args
+      name: "ffmpeg",
+      executable: detected.executable,
+      args: [
+        "-hide_banner", "-loglevel", "error", "-y",
+        ...input,
+        "-t", String(durationSec),
+        "-ac", "1",
+        "-ar", String(sampleRate),
+        "-acodec", "pcm_s16le",
+        audioPath
+      ]
     };
   }
 
+  if (detected?.name === "arecord") {
+    const args = [
+      "-q",
+      "-d", String(durationSec),
+      "-f", "S16_LE",
+      "-r", String(sampleRate),
+      "-c", "1"
+    ];
+    if (device) args.push("-D", String(device));
+    args.push(audioPath);
+    return { name: "arecord", executable: detected.executable, args };
+  }
+
+  if (detected?.name === "sox") {
+    const args = ["-q", "-d", "-b", "16", "-c", "1", "-r", String(sampleRate), audioPath, "trim", "0", String(durationSec)];
+    return { name: "sox", executable: detected.executable, args };
+  }
+
   throw new Error(
-    `No built-in recorder for this platform (${process.platform}); only macOS has one. ` +
-    "Provide --record-command or set SUBTEXT_RECORD_COMMAND with a template using the " +
-    "{out}, {duration}, {sampleRate}, {device} placeholders. Examples: " +
-    "Windows: --record-command \"ffmpeg -f dshow -i audio=Microphone -t {duration} {out}\" " +
-    "(quote the whole token if the device name has spaces, e.g. \"audio=My Microphone\"); " +
-    "Linux: --record-command \"arecord -d {duration} -f cd {out}\"."
+    `No microphone recorder found for this platform (${platform}). Subtext looked for ` +
+    `${(RECORDERS_BY_PLATFORM[platform] ?? ["ffmpeg", "sox"]).join(", ")} on PATH. ` +
+    `Install one (ffmpeg is the easiest: https://ffmpeg.org/download.html), or pass ` +
+    `--record-command / set SUBTEXT_RECORD_COMMAND with a template using the {out}, ` +
+    `{duration}, {sampleRate}, {device} placeholders. The desktop app captures in its own ` +
+    `window and needs none of this.`
   );
 }
 
