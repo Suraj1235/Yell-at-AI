@@ -23,7 +23,7 @@
 // envelope. The runner is injectable so the adapter is fully testable offline.
 import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import { resolveInstalledModel } from "./models.js";
 
 export const WHISPER_BINARY_NAMES = ["whisper", "whisper-cli", "main"];
@@ -230,7 +230,7 @@ function spawnWhisper(binary, args, env) {
 
 function findOnPath(names, env, platform = process.platform) {
   const pathValue = env.PATH ?? env.Path ?? "";
-  const dirs = pathValue.split(delimiter).filter(Boolean);
+  const dirs = pathValue.split(pathDelimiterFor(platform)).filter(Boolean);
   const exts = pathExtensions(env, platform);
   for (const dir of dirs) {
     for (const name of names) {
@@ -251,11 +251,20 @@ function findOnPath(names, env, platform = process.platform) {
 // restricting to this set cannot lose a legitimate binary.
 const EXECUTABLE_EXTENSIONS = new Set([".COM", ".EXE", ".BAT", ".CMD"]);
 
+// PATH and PATHEXT separators belong to the platform being RESOLVED FOR, not to
+// the platform running this code. node:path's `delimiter` is the host's, so using
+// it here made a win32 resolution simulated on Linux/macOS split PATHEXT on ":"
+// and match nothing. PATHEXT is a Windows concept and is always ";"-separated.
+function pathDelimiterFor(platform) {
+  return platform === "win32" ? ";" : ":";
+}
+
 function pathExtensions(env, platform = process.platform) {
   if (platform !== "win32") return [""];
   const pathext = env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD";
   const allowed = pathext
-    .split(delimiter)
+    .split(";")
+    .map((ext) => ext.trim())
     .filter(Boolean)
     .filter((ext) => EXECUTABLE_EXTENSIONS.has(ext.toUpperCase()));
   return ["", ...allowed];
