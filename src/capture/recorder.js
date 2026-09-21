@@ -18,12 +18,24 @@ export async function recordWav(options = {}) {
   const audioPath = resolve(options.out ?? defaultCapturePath());
   await mkdir(dirname(audioPath), { recursive: true });
 
+  const customCommand = options.command ?? process.env.SUBTEXT_RECORD_COMMAND;
+  let device = options.device;
+  if (!customCommand && !device && process.platform === "win32") {
+    // ffmpeg's dshow input has no "default device" alias on Windows, so the
+    // device name has to be resolved up front or buildRecorderCommand throws
+    // its actionable "run -list_devices" error.
+    const found = findRecorderOnPath(process.env, process.platform);
+    if (found?.name === "ffmpeg") {
+      device = await resolveWindowsAudioDevice({ executable: found.executable });
+    }
+  }
+
   const recorder = buildRecorderCommand({
     audioPath,
     durationSec,
     sampleRate,
-    device: options.device,
-    command: options.command ?? process.env.SUBTEXT_RECORD_COMMAND
+    device,
+    command: customCommand
   });
   const startedAt = new Date();
   await runRecorder(recorder, { timeoutMs: Math.ceil((durationSec + 10) * 1000) });
@@ -80,6 +92,54 @@ function resolveExecutable(name, env, platform) {
   return null;
 }
 
+// ffmpeg's dshow demuxer only accepts a real device name (no "default" alias),
+// so on Windows we enumerate devices with `ffmpeg -list_devices true -f dshow
+// -i dummy` and pick the first audio device. ffmpeg prints the device list to
+// stderr and always exits non-zero for this invocation — that is expected, not
+// a failure, so the runner resolves on stderr regardless of exit code.
+const DSHOW_LIST_ARGS = ["-list_devices", "true", "-f", "dshow", "-i", "dummy"];
+
+export async function resolveWindowsAudioDevice({ executable = "ffmpeg", runner = runDshowDeviceList } = {}) {
+  const stderr = await runner(executable, DSHOW_LIST_ARGS);
+  const names = parseDshowAudioDeviceNames(stderr);
+  return names.length ? names[0] : null;
+}
+
+function runDshowDeviceList(executable, args) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(executable, args, { stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.on("error", reject);
+    child.on("exit", () => resolvePromise(stderr));
+  });
+}
+
+// Parses ffmpeg's dshow device-list stderr, e.g.:
+//   [dshow @ 0000...] DirectShow audio devices
+//   [dshow @ 0000...]  "Microphone (Realtek Audio)"
+//   [dshow @ 0000...]     Alternative name "@device_cm_{...}"
+// Returns device names in listed order, skipping "Alternative name" lines and
+// stopping once the dshow-prefixed block ends. Returns [] when there is no
+// audio devices section (e.g. only video devices are present).
+function parseDshowAudioDeviceNames(stderr) {
+  const lines = String(stderr).split(/\r?\n/);
+  const headerIndex = lines.findIndex((line) => /directshow audio devices/i.test(line));
+  if (headerIndex === -1) return [];
+
+  const names = [];
+  for (let i = headerIndex + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.includes("[dshow")) break;
+    if (/alternative name/i.test(line)) continue;
+    const match = line.match(/"([^"]+)"/);
+    if (match) names.push(match[1]);
+  }
+  return names;
+}
+
 export function buildRecorderCommand({
   audioPath,
   durationSec,
@@ -115,9 +175,19 @@ export function buildRecorderCommand({
   }
 
   if (detected?.name === "ffmpeg") {
+    // ffmpeg's dshow demuxer has no "default device" alias, unlike alsa/avfoundation
+    // below, so a Windows capture with no device would build a command that fails at
+    // run time. Fail fast here instead, naming the exact enumeration command.
+    if (platform === "win32" && !device) {
+      throw new Error(
+        "No audio device specified for Windows capture. Run " +
+        '"ffmpeg -list_devices true -f dshow -i dummy" to list available devices, then ' +
+        'pass --device "<name>" (quote it — device names contain spaces).'
+      );
+    }
     // Input device syntax is platform-specific; the encode flags are not.
     const input = platform === "win32"
-      ? ["-f", "dshow", "-i", `audio=${device ?? "default"}`]
+      ? ["-f", "dshow", "-i", `audio=${device}`]
       : platform === "darwin"
         ? ["-f", "avfoundation", "-i", `:${device ?? "0"}`]
         : ["-f", "alsa", "-i", String(device ?? "default")];
