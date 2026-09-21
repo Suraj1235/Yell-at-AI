@@ -25,6 +25,7 @@ import { startHttpServer } from "./server/http.js";
 import { startMcpServer } from "./server/mcp.js";
 import { transcribeWithCommand } from "./transcribe/command.js";
 import { transcribe, getEngine } from "./transcribe/index.js";
+import { listModels, downloadModel, modelDirectory } from "./transcribe/models.js";
 import { normalizeTranscriptEnvelope, parseTranscriptPayload } from "./transcript/envelope.js";
 
 export async function runCli(argv = []) {
@@ -144,6 +145,48 @@ export async function runCli(argv = []) {
     if (command === "profile") {
       await runProfileCommand(rest);
       return;
+    }
+
+    if (command === "model") {
+      const [subcommand = "list", ...modelRest] = rest;
+      const args = parseArgs(modelRest);
+
+      if (subcommand === "list") {
+        const rows = listModels();
+        if (args.format === "json") {
+          process.stdout.write(`${JSON.stringify({ directory: modelDirectory(), models: rows }, null, 2)}\n`);
+          return;
+        }
+        process.stdout.write(`Whisper models in ${modelDirectory()}\n\n`);
+        for (const row of rows) {
+          const state = row.installed ? "installed" : "not installed";
+          process.stdout.write(`  ${row.id.padEnd(10)} ${state.padEnd(14)} ${formatBytes(row.bytes)}  ${row.note}\n`);
+        }
+        process.stdout.write(`\nInstall one with: subtext model download base.en --yes\n`);
+        return;
+      }
+
+      if (subcommand === "download") {
+        const id = modelRest.find((value) => !value.startsWith("--")) ?? "base.en";
+        const consent = args.yes === true || args.yes === "true";
+        if (!consent) {
+          const model = listModels().find((row) => row.id === id);
+          process.stderr.write(
+            `subtext: downloading ${id} fetches roughly ${formatBytes(model?.bytes ?? 0)} from ` +
+            `huggingface.co into ${modelDirectory()}.\n` +
+            `This is the only network request Subtext ever makes on your behalf.\n` +
+            `Re-run with --yes to confirm: subtext model download ${id} --yes\n`
+          );
+          process.exitCode = 1;
+          return;
+        }
+        process.stderr.write(`subtext: downloading ${id}...\n`);
+        const path = await downloadModel(id, { consent: true });
+        process.stdout.write(`subtext: installed ${id} at ${path}\n`);
+        return;
+      }
+
+      throw new Error(`Unknown model subcommand: ${subcommand}. Use: list, download.`);
     }
 
     if (command === "render") {
@@ -297,6 +340,7 @@ Commands:
   handoff           Analyze a turn and deliver the enriched prompt (clipboard/paste/stdout/file)
   calibrate         Build or update a neutral-voice baseline from one or more samples
   profile           Manage saved calibration profiles (list, show, delete)
+  model             Manage local whisper models (list, download)
   render            Render a saved vocalcontext/v1 contract into prompt text
   doctor            Check harness adapter readiness (--harness ... --format text|json)
   conformance       Verify natural-speech cues and harness policies (--format json|text)
@@ -327,6 +371,8 @@ Examples:
   subtext calibrate --profile laptop-mic --audio neutral.wav --text "..." [--profiles .subtext/profiles.json]
   subtext analyze --profile laptop-mic --audio turn.wav --text "..."
   subtext profile list [--profiles .subtext/profiles.json]
+  subtext model list                       # what is installed, and where
+  subtext model download base.en --yes     # fetch the default model (~142 MB, one time)
   subtext capture --duration 4 --audio-out turn.wav
   subtext capture --duration 4 --text "..." --format prompt
   subtext session --duration 4 --transcript-command "host-transcript {audio}" [--target stdout|clipboard|paste|file]
@@ -346,6 +392,12 @@ Examples:
 
 The engine helps AI understand what you mean and the emotion of your natural speech, not just plain transcript text. It emits vocalcontext/v1 meaning, affect, and prosody cues without sending audio over the network.
 `;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "unknown size";
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
 }
 
 function renderAdapterInstall(report) {

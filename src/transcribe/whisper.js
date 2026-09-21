@@ -21,6 +21,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { delimiter, join } from "node:path";
+import { resolveInstalledModel } from "./models.js";
 
 export const WHISPER_BINARY_NAMES = ["whisper", "whisper-cli", "main"];
 export const WHISPER_SOURCE = "whisper.cpp";
@@ -42,15 +43,23 @@ export function resolveWhisperBinary(env = process.env) {
   throw new Error(WHISPER_NOT_FOUND_MESSAGE);
 }
 
-// Resolve the ggml model path from SUBTEXT_WHISPER_MODEL, or null when unset.
-// Throws an actionable error when the variable is set but the file is missing.
+// Resolve the ggml model path from SUBTEXT_WHISPER_MODEL, falling back to a
+// model installed by `subtext model download` (see src/transcribe/models.js),
+// or null when neither is available. Throws an actionable error when
+// SUBTEXT_WHISPER_MODEL is set but the file is missing.
 export function resolveWhisperModel(env = process.env) {
   const model = env.SUBTEXT_WHISPER_MODEL;
-  if (!model) return null;
-  if (isExecutableFile(model)) return model;
-  throw new Error(
-    `whisper model not found at SUBTEXT_WHISPER_MODEL=${model}; download a ggml model - see docs/WHISPER.md`
-  );
+  if (model) {
+    if (isExecutableFile(model)) return model;
+    throw new Error(
+      `whisper model not found at SUBTEXT_WHISPER_MODEL=${model}; download a ggml model - see docs/WHISPER.md`
+    );
+  }
+
+  // Fall back to a model installed by `subtext model download`, so the offline
+  // default works without the user setting any environment variable.
+  const managed = resolveInstalledModel("base.en", env);
+  return managed ?? null;
 }
 
 // Build the argument vector passed to the whisper binary for a given audio file.
