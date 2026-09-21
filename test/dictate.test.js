@@ -20,10 +20,12 @@ test("an unknown engine is rejected with the list of available engines", () => {
   assert.throws(() => resolveDictateEngine({ engine: "nope" }, {}), /Available: /);
 });
 
-// unskipped in Task 6
-test.skip("dictate --engine cloud without a key fails with an actionable message", async () => {
+test("dictate --engine cloud without a key fails with an actionable message", async () => {
+  // No --text here: an explicit transcript short-circuits STT entirely (see
+  // dictateFromArgs in src/cli.js), which would skip the cloud adapter and this
+  // assertion would never be exercised. Omitting it forces the real STT path.
   const error = await run("node", [CLI, "dictate", "--engine", "cloud", "--audio",
-    join(ROOT, "eval", "fixtures", "emphasis.wav"), "--text", "ship the whole thing"],
+    join(ROOT, "eval", "fixtures", "emphasis.wav")],
     { env: { ...process.env, SUBTEXT_CLOUD_API_KEY: "", GROQ_API_KEY: "", DEEPGRAM_API_KEY: "" } }
   ).catch((caught) => caught);
 
