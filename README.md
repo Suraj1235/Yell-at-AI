@@ -304,8 +304,9 @@ Latest local verification:
 20/20 functional plugin-boundary tests passing
 p95 latency: 32.161 ms, budget: 300 ms
 package dry-run: 125 files
-external emotion evidence: opt-in, 21/25 on acted web clips
-wild YouTube speech: opt-in, checked-in baseline 11/11; expanded 14-case manifest
+external emotion evidence: opt-in, 21/25 (84%) on acted web clips
+wild YouTube speech: opt-in, 11/14 (79%) on the full 14-case manifest
+known weakness: all 3 wild misses are false-positive hesitation/uncertainty on calm expository speech
 desktop scaffold: Tauri/Rust scaffold check passing
 harness conformance: yelling/emphasis/confusion cues + 12 harness policies passing
 adapter doctor: 12/12 ready
