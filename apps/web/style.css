@@ -496,6 +496,81 @@ main, header, footer { position: relative; z-index: 2; }
 .tool-status[data-state="error"] .status-dot { background: var(--flag-red); box-shadow: 0 0 10px var(--flag-red); }
 @keyframes blink { 50% { opacity: 0.25; } }
 
+/* Engine badge — persistent, non-dismissible, directly above the recorder.
+   It states which transcription engine is active and who receives the audio.
+   There is deliberately no close/dismiss affordance and no rule that hides it:
+   the whole point is that it is there before the first take and stays there.
+   Colour carries the egress state, but never alone — the text always says it. */
+.engine-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 13px 16px 14px;
+  background: linear-gradient(180deg, var(--panel-2), var(--bg-sunken));
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-ghost);
+  border-radius: var(--radius);
+}
+.engine-badge-mark {
+  flex: none;
+  margin-top: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+  transition: background 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+.engine-badge-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.engine-badge-title {
+  font: 600 12px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.engine-badge-detail {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+  max-width: 78ch;
+}
+
+/* Audio goes to a named third party — the hot accent, the one that means "heat". */
+.engine-badge[data-egress="vendor"] {
+  border-left-color: var(--hot);
+  background: linear-gradient(180deg, rgba(255, 122, 24, 0.08), var(--bg-sunken));
+}
+.engine-badge[data-egress="vendor"] .engine-badge-mark {
+  background: var(--hot);
+  box-shadow: 0 0 12px var(--hot-glow), 0 0 0 4px rgba(255, 122, 24, 0.09);
+}
+.engine-badge[data-egress="vendor"] .engine-badge-title { color: var(--hot-bright); }
+
+/* Nothing is sent for recognition — the cool signal, the one that means "understood". */
+.engine-badge[data-egress="none"] {
+  border-left-color: var(--cool);
+  background: linear-gradient(180deg, rgba(54, 214, 195, 0.06), var(--bg-sunken));
+}
+.engine-badge[data-egress="none"] .engine-badge-mark {
+  background: var(--cool);
+  box-shadow: 0 0 12px rgba(54, 214, 195, 0.3), 0 0 0 4px rgba(54, 214, 195, 0.08);
+}
+.engine-badge[data-egress="none"] .engine-badge-title { color: var(--cool-bright); }
+
+/* Recognition was refused mid-session. */
+.engine-badge[data-egress="blocked"] { border-left-color: var(--flag-amber); }
+.engine-badge[data-egress="blocked"] .engine-badge-mark {
+  background: var(--flag-amber);
+  box-shadow: 0 0 12px rgba(255, 179, 71, 0.3), 0 0 0 4px rgba(255, 179, 71, 0.08);
+}
+.engine-badge[data-egress="blocked"] .engine-badge-title { color: var(--flag-amber); }
+
+@media (max-width: 560px) {
+  .engine-badge { padding: 12px 13px; gap: 10px; }
+  .engine-badge-detail { font-size: 13px; }
+}
+
 /* Recorder */
 .recorder {
   position: relative;

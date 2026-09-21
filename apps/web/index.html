@@ -65,9 +65,11 @@
     <div class="how-head">
       <h2 id="how-title">Same words. Different meaning.<br>Your voice already knew.</h2>
       <p>
-        No model weights, no API key, no upload. A lightweight signal-processing pass
-        pulls grounded cues straight from the waveform and labels them with a confidence —
-        so the assistant can see the evidence, not guess at your mood.
+        No model weights, no API key, no server for the analysis. A lightweight
+        signal-processing pass pulls grounded cues straight from the waveform, in this page, and
+        labels them with a confidence — so the assistant can see the evidence, not guess at your
+        mood. (Turning speech into words is the exception — the badge on the recorder names the
+        engine and who receives your audio.)
       </p>
     </div>
     <ul class="how-grid" role="list">
@@ -116,6 +118,31 @@
           <span class="status-dot" id="status-dot"></span>
           <span id="status-text">Checking your browser…</span>
         </div>
+      </div>
+
+      <!--
+        Engine badge — persistent, non-dismissible, and ABOVE the recorder.
+        Design rule: any transcription engine that sends audio to a third party
+        must name that third party at the point of use, before the first take.
+        There is no dismiss control and nothing ever hides this element.
+
+        This static text is the pre-script state: it is true in every browser,
+        because it states both branches. app.js narrows it to the one that
+        actually applies (Web Speech + its vendor, or the typed fallback where
+        nothing is sent for recognition) as soon as the module runs on load,
+        long before any capture can begin.
+      -->
+      <div class="engine-badge" id="engine-badge" data-egress="pending" role="note">
+        <span class="engine-badge-mark" aria-hidden="true"></span>
+        <span class="engine-badge-body">
+          <strong class="engine-badge-title" id="engine-badge-title">Transcription engine — checking this browser</strong>
+          <span class="engine-badge-detail" id="engine-badge-detail">
+            Live transcription here is your browser's Web Speech API, and in Chrome and Edge that
+            sends your audio to Google for recognition. In browsers without it you type the
+            transcript and no audio is sent anywhere for recognition. Either way, the prosody
+            analysis runs on this device.
+          </span>
+        </span>
       </div>
 
       <!-- Recorder -->
@@ -222,7 +249,8 @@
       <strong>Transcription is the honest exception.</strong> To turn your speech into words, this
       page uses your browser's built-in Web Speech API — and in Chrome and Edge, that uploads your
       audio to Google's servers for recognition. We will not pretend otherwise. The badge above the
-      recorder always names the engine in use.
+      recorder always names the engine in use, and names the company that receives your audio when
+      one does — before you press record, not after.
     </p>
     <ul class="privacy-points" role="list">
       <li><span aria-hidden="true">∅</span> Prosody analysis is local — always, on every engine</li>

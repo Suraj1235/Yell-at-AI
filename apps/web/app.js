@@ -13,7 +13,7 @@
 // Fallback: if SpeechRecognition is unavailable (e.g. Firefox), the user types
 // the transcript and still gets prosody from the recording.
 
-import { analyzeSamples, renderVocalContext } from "./vendor/index.browser.js";
+import { analyzeSamples, renderVocalContext, ENGINES } from "./vendor/index.browser.js";
 
 const MAX_SECONDS = 30;
 
@@ -42,7 +42,10 @@ const el = {
   blockOut: document.getElementById("block-out"),
   copyBtn: document.getElementById("copy-btn"),
   copyLabel: document.querySelector(".copy-label"),
-  toolError: document.getElementById("tool-error")
+  toolError: document.getElementById("tool-error"),
+  engineBadge: document.getElementById("engine-badge"),
+  engineBadgeTitle: document.getElementById("engine-badge-title"),
+  engineBadgeDetail: document.getElementById("engine-badge-detail")
 };
 
 /* ───────────────────────── feature detection ───────────────────────── */
@@ -94,8 +97,75 @@ function clearError() {
   el.toolError.textContent = "";
 }
 
+/* ───────────────────────── engine badge ─────────────────────────
+   The persistent, non-dismissible statement of which transcription engine is
+   active and who — if anyone — receives the audio. It is rendered above the
+   recorder on load, before any capture is possible, and it is never hidden or
+   removed. The vendor name comes from the shared engine registry
+   (src/transcribe/engines.js, vendored into vendor/) rather than a literal
+   here, so the page and the CLI can never disagree about who gets the audio.
+
+   There are exactly four states the page can be in, and the badge has to be
+   true in all four:
+     vendor   - Web Speech is available, so recognition uploads audio.
+     none     - no Web Speech (e.g. Firefox): the user types, nothing is sent.
+     none     - no capture support at all: there is no audio in the first place.
+     blocked  - Web Speech was refused by the browser mid-session, so no audio
+                reached the vendor and the user falls back to typing.
+*/
+function setEngineBadge(egress, title, detail) {
+  if (!el.engineBadge) return;
+  el.engineBadge.dataset.egress = egress;
+  el.engineBadgeTitle.textContent = title;
+  el.engineBadgeDetail.textContent = detail;
+}
+
+function renderEngineBadge() {
+  if (!hasMediaCapture || !hasDecode) {
+    setEngineBadge(
+      "none",
+      "Transcription engine — unavailable in this browser",
+      "This browser can't record audio, so nothing is captured and nothing is sent anywhere. " +
+        "Prosody analysis needs a recording, and it would run on this device."
+    );
+    return;
+  }
+
+  if (!SpeechRecognitionImpl) {
+    setEngineBadge(
+      "none",
+      "Transcription engine — none, you type the transcript",
+      "This browser has no Web Speech API, so no audio is sent to anyone for recognition. " +
+        "Type what you said; the prosody is read from your recording on this device."
+    );
+    return;
+  }
+
+  const engine = ENGINES.webspeech;
+  setEngineBadge(
+    "vendor",
+    `Transcription engine — ${engine.label}`,
+    `Your audio is sent to ${engine.vendor} for recognition. Only transcription leaves this ` +
+      "device: the prosody analysis runs here, in this page. To send nothing at all, leave the " +
+      "microphone alone and type the transcript instead."
+  );
+}
+
+function markRecognitionBlocked() {
+  setEngineBadge(
+    "blocked",
+    "Transcription engine — Web Speech blocked by this browser",
+    `Live recognition was refused, so no audio reached ${ENGINES.webspeech.vendor}. Type what ` +
+      "you said; the prosody is still read from your recording on this device."
+  );
+}
+
 /* ───────────────────────── init / capability gate ───────────────────────── */
 function init() {
+  // First thing, before any listener is wired and long before capture is
+  // possible: say which engine is active and who receives the audio.
+  renderEngineBadge();
+
   if (!hasMediaCapture || !hasDecode) {
     setStatus("error", "Mic capture unsupported here");
     el.recordBtn.disabled = true;
@@ -371,6 +441,9 @@ function stopTimer() {
 /* ───────────────────────── speech recognition ───────────────────────── */
 function startRecognition() {
   if (!SpeechRecognitionImpl) return;
+  // A previous take may have left the badge in the "blocked" state; recognition
+  // is about to be attempted again, so restate the vendor before it starts.
+  renderEngineBadge();
   try {
     const recognition = new SpeechRecognitionImpl();
     recognition.continuous = true;
@@ -399,6 +472,7 @@ function startRecognition() {
       // 'no-speech' / 'aborted' are routine; only surface real failures.
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         el.transcriptSource.textContent = "live transcript blocked — type instead";
+        markRecognitionBlocked();
       }
     });
 

@@ -7,6 +7,65 @@ import { CONFUSION_WORDS, FILLED_PAUSES, NEGATIVE_WORDS, POSITIVE_WORDS, SOFTENE
 
 const SCHEMA = "vocalcontext/v1";
 
+// Categorical thresholds for bucketing a speaker's rate/energy/pauses/pitch-range/
+// voice-quality, and for the yelling detector. Each metric has a baseline-mode cutoff
+// (a z-score against the speaker's own calibrated history, used when a personal
+// baseline is available) and a no-baseline-mode cutoff (an absolute value used as a
+// cross-speaker default otherwise). Values are unchanged from their prior inline
+// literals; only the names are new.
+const THRESHOLDS = {
+  // categorizeProsody: speaking rate (words/sec).
+  rateBaselineZ: 1.35,
+  rateFastWordsPerSecondNoBaseline: 3.6,
+  rateSlowWordsPerSecondNoBaseline: 1.9,
+
+  // categorizeProsody: energy. energyDefaultMean/Stdev are the population
+  // mean/stdev used as a stand-in baseline when computing a z-score with no
+  // personal baseline.
+  energyDefaultMean: 0.1,
+  energyDefaultStdev: 0.045,
+  energyBaselineZ: 1.35,
+  energyHighZNoBaseline: 1.15,
+  energyHighMeanNoBaseline: 0.15,
+  energyLowZNoBaseline: 1.1,
+  energyLowMeanNoBaseline: 0.055,
+
+  // categorizePauseDensity.
+  pauseDensityBaselineZ: 1.35,
+  pauseDensityBaselineDelta: 0.06,
+  pauseDensityHighNoBaseline: 0.28,
+  pauseDensityModerateNoBaseline: 0.12,
+
+  // categorizePitchRange (semitones).
+  pitchRangeBaselineZ: 1.35,
+  pitchRangeBaselineDeltaSemitones: 1.5,
+  pitchRangeWideSemitonesNoBaseline: 7,
+  pitchRangeNarrowSemitonesNoBaseline: 3.2,
+
+  // categorizeVoiceQuality: no-baseline mode flags "tense" on any single absolute
+  // symptom (low harmonic/pitch confidence, high shimmer, or jitter co-occurring
+  // with energy); baseline mode instead requires a z-score outlier vs. the
+  // speaker's own jitter/shimmer/confidence history.
+  voiceQualityLowConfidenceNoBaseline: 0.45,
+  voiceQualityHighShimmerNoBaseline: 0.42,
+  voiceQualityHighJitterNoBaseline: 0.12,
+  voiceQualityJitterEnergyFloor: 0.05,
+  voiceQualityModerateJitterNoBaseline: 0.06,
+  voiceQualityHighEnergyPeakNoBaseline: 0.34,
+  voiceQualityLowConfidenceBaseline: 0.38,
+  voiceQualityConfidenceZ: -2,
+  voiceQualityJitterZ: 2,
+  voiceQualityJitterRatioFloor: 0.04,
+  voiceQualityShimmerZ: 2,
+  voiceQualityShimmerRatioFloor: 0.16,
+
+  // isYelling: extreme-energy detector.
+  yellingEnergyPeakZ: 1.8,
+  yellingEnergyMeanZ: 1.6,
+  yellingEnergyPeakNoBaseline: 0.34,
+  yellingEnergyMeanNoBaseline: 0.19
+};
+
 export async function analyzeFile(audioPath, text, options = {}) {
   const { readWavFile } = await import("../audio/wav.js"); // lazy: keeps this module browser-safe
   const wav = await readWavFile(audioPath);
@@ -379,30 +438,30 @@ function categorizeProsody(summary, wordMetrics, baseline) {
   const hasBaseline = isBaseline(baseline);
   const rateZ = hasBaseline ? zScore(wordsPerSecond, baseline.rate.mean, baseline.rate.stdev) : 0;
   const rate = hasBaseline
-    ? rateZ >= 1.35
+    ? rateZ >= THRESHOLDS.rateBaselineZ
       ? "fast"
-      : rateZ <= -1.35
+      : rateZ <= -THRESHOLDS.rateBaselineZ
         ? "slow"
         : "normal"
-    : wordsPerSecond >= 3.6
+    : wordsPerSecond >= THRESHOLDS.rateFastWordsPerSecondNoBaseline
       ? "fast"
-      : wordsPerSecond <= 1.9
+      : wordsPerSecond <= THRESHOLDS.rateSlowWordsPerSecondNoBaseline
         ? "slow"
         : "normal";
   const pauseDensity = categorizePauseDensity(summary, baseline);
 
-  const energyCenter = hasBaseline ? baseline.energy.mean : 0.1;
-  const energySpread = hasBaseline ? baseline.energy.stdev : 0.045;
+  const energyCenter = hasBaseline ? baseline.energy.mean : THRESHOLDS.energyDefaultMean;
+  const energySpread = hasBaseline ? baseline.energy.stdev : THRESHOLDS.energyDefaultStdev;
   const energyZ = zScore(summary.energyMean, energyCenter, energySpread);
   const energy = hasBaseline
-    ? energyZ >= 1.35
+    ? energyZ >= THRESHOLDS.energyBaselineZ
       ? "high"
-      : energyZ <= -1.35
+      : energyZ <= -THRESHOLDS.energyBaselineZ
         ? "low"
         : "medium"
-    : energyZ >= 1.15 || summary.energyMean >= 0.15
+    : energyZ >= THRESHOLDS.energyHighZNoBaseline || summary.energyMean >= THRESHOLDS.energyHighMeanNoBaseline
       ? "high"
-      : energyZ <= -1.1 || summary.energyMean <= 0.055
+      : energyZ <= -THRESHOLDS.energyLowZNoBaseline || summary.energyMean <= THRESHOLDS.energyLowMeanNoBaseline
         ? "low"
         : "medium";
 
@@ -422,38 +481,42 @@ function categorizeProsody(summary, wordMetrics, baseline) {
 
 function categorizePauseDensity(summary, baseline) {
   if (!isBaseline(baseline)) {
-    return summary.pauseDensity >= 0.28 ? "high" : summary.pauseDensity >= 0.12 ? "moderate" : "low";
+    return summary.pauseDensity >= THRESHOLDS.pauseDensityHighNoBaseline
+      ? "high"
+      : summary.pauseDensity >= THRESHOLDS.pauseDensityModerateNoBaseline
+        ? "moderate"
+        : "low";
   }
 
   const pauseZ = zScore(summary.pauseDensity, baseline.pauseDensity.mean, baseline.pauseDensity.stdev);
   const delta = summary.pauseDensity - baseline.pauseDensity.mean;
-  if (pauseZ >= 1.35 && delta >= 0.06) return "high";
-  if (pauseZ <= -1.35 && delta <= -0.06) return "low";
-  return summary.pauseDensity < 0.12 ? "low" : "moderate";
+  if (pauseZ >= THRESHOLDS.pauseDensityBaselineZ && delta >= THRESHOLDS.pauseDensityBaselineDelta) return "high";
+  if (pauseZ <= -THRESHOLDS.pauseDensityBaselineZ && delta <= -THRESHOLDS.pauseDensityBaselineDelta) return "low";
+  return summary.pauseDensity < THRESHOLDS.pauseDensityModerateNoBaseline ? "low" : "moderate";
 }
 
 function categorizePitchRange(summary, baseline) {
   if (!isBaseline(baseline)) {
-    return summary.pitchRangeSemitones >= 7
+    return summary.pitchRangeSemitones >= THRESHOLDS.pitchRangeWideSemitonesNoBaseline
       ? "wide"
-      : summary.pitchRangeSemitones <= 3.2
+      : summary.pitchRangeSemitones <= THRESHOLDS.pitchRangeNarrowSemitonesNoBaseline
         ? "narrow"
         : "medium";
   }
 
   const pitchZ = zScore(summary.pitchRangeSemitones, baseline.pitchRange.mean, baseline.pitchRange.stdev);
   const delta = summary.pitchRangeSemitones - baseline.pitchRange.mean;
-  if (pitchZ >= 1.35 && delta >= 1.5) return "wide";
-  if (pitchZ <= -1.35 && delta <= -1.5) return "narrow";
+  if (pitchZ >= THRESHOLDS.pitchRangeBaselineZ && delta >= THRESHOLDS.pitchRangeBaselineDeltaSemitones) return "wide";
+  if (pitchZ <= -THRESHOLDS.pitchRangeBaselineZ && delta <= -THRESHOLDS.pitchRangeBaselineDeltaSemitones) return "narrow";
   return "medium";
 }
 
 function categorizeVoiceQuality(summary, baseline) {
   if (!isBaseline(baseline)) {
-    return summary.pitchConfidenceMean <= 0.45
-      || summary.shimmerRatio >= 0.42
-      || (summary.jitterRatio >= 0.12 && summary.energyMean >= 0.05)
-      || (summary.jitterRatio >= 0.06 && summary.energyPeak >= 0.34)
+    return summary.pitchConfidenceMean <= THRESHOLDS.voiceQualityLowConfidenceNoBaseline
+      || summary.shimmerRatio >= THRESHOLDS.voiceQualityHighShimmerNoBaseline
+      || (summary.jitterRatio >= THRESHOLDS.voiceQualityHighJitterNoBaseline && summary.energyMean >= THRESHOLDS.voiceQualityJitterEnergyFloor)
+      || (summary.jitterRatio >= THRESHOLDS.voiceQualityModerateJitterNoBaseline && summary.energyPeak >= THRESHOLDS.voiceQualityHighEnergyPeakNoBaseline)
       ? "tense"
       : "steady";
   }
@@ -463,9 +526,12 @@ function categorizeVoiceQuality(summary, baseline) {
   const confidenceZ = baseline.pitchConfidence
     ? zScore(summary.pitchConfidenceMean, baseline.pitchConfidence.mean, baseline.pitchConfidence.stdev)
     : 0;
-  const unusuallyLowConfidence = summary.pitchConfidenceMean <= 0.38 || confidenceZ <= -2;
-  const unusuallyJittery = jitterZ >= 2 && summary.jitterRatio >= 0.04 && summary.energyMean >= 0.05;
-  const unusuallyShimmery = shimmerZ >= 2 && summary.shimmerRatio >= 0.16;
+  const unusuallyLowConfidence = summary.pitchConfidenceMean <= THRESHOLDS.voiceQualityLowConfidenceBaseline
+    || confidenceZ <= THRESHOLDS.voiceQualityConfidenceZ;
+  const unusuallyJittery = jitterZ >= THRESHOLDS.voiceQualityJitterZ
+    && summary.jitterRatio >= THRESHOLDS.voiceQualityJitterRatioFloor
+    && summary.energyMean >= THRESHOLDS.voiceQualityJitterEnergyFloor;
+  const unusuallyShimmery = shimmerZ >= THRESHOLDS.voiceQualityShimmerZ && summary.shimmerRatio >= THRESHOLDS.voiceQualityShimmerRatioFloor;
   return unusuallyLowConfidence || unusuallyJittery || unusuallyShimmery ? "tense" : "steady";
 }
 
@@ -514,7 +580,7 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
     });
   }
 
-  if (isUncertainRise(text, prosody, wordMetrics, filledPauseCount, softenerCount, confusionMarkerCount)) {
+  if (isUncertainRise(text, prosody, filledPauseCount, softenerCount, confusionMarkerCount)) {
     flags.push({
       type: "uncertainty",
       evidence: "rising terminal pitch on a non-question transcript",
@@ -589,9 +655,9 @@ function countSofteners(normalizedWords) {
 
 function isYelling(prosody, summary, baseline) {
   const extremeEnergy = isBaseline(baseline)
-    ? zScore(summary.energyPeak, baseline.energyPeak.mean, baseline.energyPeak.stdev) >= 1.8
-      || zScore(summary.energyMean, baseline.energy.mean, baseline.energy.stdev) >= 1.6
-    : summary.energyPeak >= 0.34 || summary.energyMean >= 0.19;
+    ? zScore(summary.energyPeak, baseline.energyPeak.mean, baseline.energyPeak.stdev) >= THRESHOLDS.yellingEnergyPeakZ
+      || zScore(summary.energyMean, baseline.energy.mean, baseline.energy.stdev) >= THRESHOLDS.yellingEnergyMeanZ
+    : summary.energyPeak >= THRESHOLDS.yellingEnergyPeakNoBaseline || summary.energyMean >= THRESHOLDS.yellingEnergyMeanNoBaseline;
   const elevatedDelivery = prosody.energy === "high" && (prosody.pitchRange === "wide" || prosody.rate === "fast" || prosody.voiceQuality === "tense");
   return extremeEnergy && elevatedDelivery && prosody.pauseDensity !== "high";
 }
@@ -617,14 +683,16 @@ function isConfused(text, prosody, filledPauseCount, softenerCount, confusionMar
   return questionLike && uncertainDelivery;
 }
 
-function isUncertainRise(text, prosody, wordMetrics, filledPauseCount, softenerCount, confusionMarkerCount) {
+function isUncertainRise(text, prosody, filledPauseCount, softenerCount, confusionMarkerCount) {
   if (prosody.terminalPitch !== "rising" || /[?]\s*$/.test(text.trim())) return false;
-  const shortTurn = wordMetrics.length <= 24;
+  // Rising terminal pitch on a non-question is only weak evidence; require a real
+  // uncertainty signal (filled pause, softener, confusion marker, or high pause density)
+  // rather than mere brevity, which short high-arousal declaratives (e.g. acted anger) also share.
   const hasUncertaintyContext = filledPauseCount > 0
     || softenerCount > 0
     || confusionMarkerCount > 0
     || prosody.pauseDensity === "high";
-  return shortTurn || hasUncertaintyContext;
+  return hasUncertaintyContext;
 }
 
 function confusionEvidence(prosody, filledPauseCount, softenerCount, confusionMarkerCount) {

@@ -1,8 +1,18 @@
 import { mean } from "./stats.js";
 
+// Default pitch-estimation bounds. minF0Hz/maxF0Hz bracket the typical adult
+// speaking F0 range in Hz; minCorrelation is the lowest normalized-autocorrelation
+// score treated as a confident voiced pitch (below it, the frame is reported
+// unvoiced). Callers may override any of these via `options`.
+const PITCH_DEFAULTS = {
+  minF0Hz: 70,
+  maxF0Hz: 420,
+  minCorrelation: 0.42
+};
+
 export function estimatePitch(frame, sampleRate, options = {}) {
-  const minF0 = options.minF0 ?? 70;
-  const maxF0 = options.maxF0 ?? 420;
+  const minF0 = options.minF0 ?? PITCH_DEFAULTS.minF0Hz;
+  const maxF0 = options.maxF0 ?? PITCH_DEFAULTS.maxF0Hz;
   const minLag = Math.max(1, Math.floor(sampleRate / maxF0));
   const maxLag = Math.min(frame.length - 2, Math.ceil(sampleRate / minF0));
 
@@ -42,7 +52,7 @@ export function estimatePitch(frame, sampleRate, options = {}) {
     }
   }
 
-  if (bestCorrelation < (options.minConfidence ?? 0.42) || bestLag === 0) {
+  if (bestCorrelation < (options.minConfidence ?? PITCH_DEFAULTS.minCorrelation) || bestLag === 0) {
     return { f0: null, confidence: Math.max(0, bestCorrelation) };
   }
 
