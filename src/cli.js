@@ -409,7 +409,7 @@ function formatBytes(bytes) {
 // explicit override when the exact literal "true"/"false" immediately
 // follows it - so "--yes false" and "--yes=false" both still refuse. Consent
 // is never widened to "any --yes token means yes".
-function parseModelDownloadArgs(tokens) {
+export function parseModelDownloadArgs(tokens) {
   let consent = false;
   let id = null;
   for (let i = 0; i < tokens.length; i += 1) {
