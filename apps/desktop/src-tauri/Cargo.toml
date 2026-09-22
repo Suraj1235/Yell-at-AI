@@ -33,6 +33,16 @@ tauri-plugin-shell = "2"
 # tokio (which Tauri's async runtime already is) rather than std::process.
 tokio = { version = "1", features = ["io-util", "process", "rt", "time"] }
 
+# Foreground-window lookup for the per-app insertion rule (src/foreground.rs).
+# Tauri already links this exact crate on Windows; this only switches on the
+# three Win32 API families the lookup calls.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
 # Note for the mobile follow-up: `tauri-plugin-global-shortcut` and
 # `tauri-plugin-autostart` are desktop-only. When `tauri android init` /
 # `tauri ios init` land, move those two under
