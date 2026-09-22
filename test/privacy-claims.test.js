@@ -24,11 +24,17 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 // and engine-picker copy, which is user-facing prose that happens to live in a
 // .js file. apps/shell/sw.js is listed because its header describes what does
 // and does not work offline.
+//
+// apps/shell/core/onboarding.js is listed because onboarding is where the
+// product makes its claims to someone who has not used it yet - "no account,
+// no word limit" and what does or does not leave the device - and a welcome
+// screen is the worst place for an over-claim to live unguarded.
 const ALWAYS_SHIPPED = [
   "README.md",
   "src/cli.js",
   "apps/web/app.js",
   "apps/shell/core/badge.js",
+  "apps/shell/core/onboarding.js",
   "apps/shell/core/settings.js",
   "apps/shell/sw.js"
 ];
@@ -46,7 +52,8 @@ const MUST_BE_COVERED = [
   "docs/NATURAL_SPEECH.md",
   "src/cli.js",
   "apps/shell/index.html",
-  "apps/shell/core/badge.js"
+  "apps/shell/core/badge.js",
+  "apps/shell/core/onboarding.js"
 ];
 
 // Only .md and .html are swept out of directories. Sweeping every shipped .js
@@ -224,6 +231,40 @@ test("the shell's engine badge sits above the app and is honest in every engine 
   // ...and the shell must actually be able to reach that state.
   const settings = await readFile(join(ROOT, "apps/shell/core/settings.js"), "utf8");
   assert.match(settings, /None — I type the words/, "the engine picker must offer an engine that sends nothing");
+});
+
+// Onboarding makes the product's claims to someone who has not used it yet,
+// including the one sentence most likely to be written as an absolute: what
+// you are not signing up for, and what does or does not leave the device. The
+// engine-dependent half must be derived, not typed, for the same reason the
+// badge's is - the shell can be set to an engine that sends nothing, and it
+// defaults to one that sends audio for recognition. A hardcoded sentence would
+// be wrong in one of those two states whichever way it was written.
+test("the onboarding claim is built from the engine registry, not written into the screen", async () => {
+  const badge = await readFile(join(ROOT, "apps/shell/core/badge.js"), "utf8");
+  assert.match(badge, /export function privacyLine/, "badge.js must export the onboarding claim builder");
+
+  const claim = badge.slice(badge.indexOf("export function privacyLine"), badge.indexOf("export function createBadge"));
+  assert.match(claim, /ENGINES\.webspeech\.vendor/, "the vendor in the claim must come from the registry");
+  assert.match(
+    claim,
+    /no audio is sent to anyone for recognition/i,
+    "the engine-sends-nothing state must say so plainly"
+  );
+  assert.match(claim, /no account/i, "the claim must still make the point it exists to make");
+  assert.match(claim, /no word limit/i, "the claim must still make the point it exists to make");
+
+  const onboarding = await readFile(join(ROOT, "apps/shell/core/onboarding.js"), "utf8");
+  assert.match(
+    onboarding,
+    /import \{ privacyLine \} from "\.\/badge\.js"/,
+    "onboarding must use the derived claim rather than its own copy of it"
+  );
+  assert.doesNotMatch(
+    onboarding,
+    /nothing leaves your machine/i,
+    "onboarding must not state the offline claim unconditionally: the shell's default engine sends audio for recognition"
+  );
 });
 
 test("the engine badge's vendor string comes from the registry and names Google", () => {
