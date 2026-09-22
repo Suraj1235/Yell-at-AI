@@ -24,6 +24,8 @@ import { renderVocalContext } from "./render/text.js";
 import { startHttpServer } from "./server/http.js";
 import { startMcpServer } from "./server/mcp.js";
 import { transcribeWithCommand } from "./transcribe/command.js";
+import { transcribe, ADAPTERS, ENGINES, listEngines } from "./transcribe/index.js";
+import { listModels, downloadModel, modelDirectory } from "./transcribe/models.js";
 import { normalizeTranscriptEnvelope, parseTranscriptPayload } from "./transcript/envelope.js";
 
 export async function runCli(argv = []) {
@@ -119,6 +121,21 @@ export async function runCli(argv = []) {
       return;
     }
 
+    if (command === "dictate") {
+      const args = parseArgs(rest);
+      const { report, contract, engine } = await dictateFromArgs(args);
+      const output = args.format === "json"
+        ? `${JSON.stringify({ capture: report, engine, contract }, null, 2)}\n`
+        : renderVocalContext(contract, { verbosity: args.verbosity ?? "subtle" });
+
+      await deliverOutput("dictate", output, args.target ?? "stdout", args, {
+        fileHint: " Use --audio-out for the recorded WAV.",
+        clipboard: "subtext: dictated turn copied to clipboard\n",
+        paste: "subtext: dictated turn copied and pasted into active app\n"
+      });
+      return;
+    }
+
     if (command === "ptt") {
       const args = parseArgs(rest);
       await runPttLoop(args);
@@ -128,6 +145,47 @@ export async function runCli(argv = []) {
     if (command === "profile") {
       await runProfileCommand(rest);
       return;
+    }
+
+    if (command === "model") {
+      const [subcommand = "list", ...modelRest] = rest;
+
+      if (subcommand === "list") {
+        const args = parseArgs(modelRest);
+        const rows = listModels();
+        if (args.format === "json") {
+          process.stdout.write(`${JSON.stringify({ directory: modelDirectory(), models: rows }, null, 2)}\n`);
+          return;
+        }
+        process.stdout.write(`Whisper models in ${modelDirectory()}\n\n`);
+        for (const row of rows) {
+          const state = row.installed ? "installed" : "not installed";
+          process.stdout.write(`  ${row.id.padEnd(10)} ${state.padEnd(14)} ${formatBytes(row.bytes)}  ${row.note}\n`);
+        }
+        process.stdout.write(`\nInstall one with: subtext model download base.en --yes\n`);
+        return;
+      }
+
+      if (subcommand === "download") {
+        const { id, consent } = parseModelDownloadArgs(modelRest);
+        if (!consent) {
+          const model = listModels().find((row) => row.id === id);
+          process.stderr.write(
+            `subtext: downloading ${id} fetches roughly ${formatBytes(model?.bytes ?? 0)} from ` +
+            `huggingface.co into ${modelDirectory()}.\n` +
+            `This is the only network request Subtext ever makes on your behalf.\n` +
+            `Re-run with --yes to confirm: subtext model download ${id} --yes\n`
+          );
+          process.exitCode = 1;
+          return;
+        }
+        process.stderr.write(`subtext: downloading ${id}...\n`);
+        const path = await downloadModel(id, { consent: true });
+        process.stdout.write(`subtext: installed ${id} at ${path}\n`);
+        return;
+      }
+
+      throw new Error(`Unknown model subcommand: ${subcommand}. Use: list, download.`);
     }
 
     if (command === "render") {
@@ -276,10 +334,12 @@ Commands:
   serve             Run the local HTTP analysis server (no audio leaves the machine)
   capture           Record audio from the mic, then optionally analyze it
   session           Record one natural-speech turn and emit the enriched prompt
+  dictate           Record a turn, transcribe it, and deliver the enriched prompt (the full loop)
   ptt               Push-to-talk loop: record, analyze, and deliver multiple turns
   handoff           Analyze a turn and deliver the enriched prompt (clipboard/paste/stdout/file)
   calibrate         Build or update a neutral-voice baseline from one or more samples
   profile           Manage saved calibration profiles (list, show, delete)
+  model             Manage local whisper models (list, download)
   render            Render a saved vocalcontext/v1 contract into prompt text
   doctor            Check harness adapter readiness (--harness ... --format text|json)
   conformance       Verify natural-speech cues and harness policies (--format json|text)
@@ -310,10 +370,16 @@ Examples:
   subtext calibrate --profile laptop-mic --audio neutral.wav --text "..." [--profiles .subtext/profiles.json]
   subtext analyze --profile laptop-mic --audio turn.wav --text "..."
   subtext profile list [--profiles .subtext/profiles.json]
+  subtext model list                       # what is installed, and where
+  subtext model download base.en --yes     # fetch the default model (~142 MB, one time)
   subtext capture --duration 4 --audio-out turn.wav
   subtext capture --duration 4 --text "..." --format prompt
   subtext session --duration 4 --transcript-command "host-transcript {audio}" [--target stdout|clipboard|paste|file]
   subtext session --duration 4 --transcript-command "host-transcript --json {audio}" --require-word-timings
+  subtext dictate                                   # record 5s, transcribe with local whisper, print
+  subtext dictate --target paste                    # ...and paste it into the focused app
+  subtext dictate --engine cloud --provider groq    # opt in to cloud STT (needs SUBTEXT_CLOUD_API_KEY)
+  subtext dictate --audio turn.wav                  # transcribe and analyze an existing recording
   subtext ptt --turns 3 --duration 4 --transcript-command "host-transcript --json {audio}" --target paste
   subtext handoff --audio turn.wav --text "..." [--target clipboard|paste|stdout|file]
   subtext render --file contract.json [--verbosity raw|subtle|full]
@@ -325,6 +391,44 @@ Examples:
 
 The engine helps AI understand what you mean and the emotion of your natural speech, not just plain transcript text. It emits vocalcontext/v1 meaning, affect, and prosody cues without sending audio over the network.
 `;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "unknown size";
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
+
+// Dedicated arg handling for `model download`, local to this command rather
+// than the shared parseArgs (which every other command depends on). The
+// shared parser binds the token after any --flag as that flag's value, so
+// "model download --yes tiny.en" would bind args.yes to the string "tiny.en"
+// instead of granting consent - --yes would be silently ignored whenever it
+// precedes the model id. Here --yes is a boolean flag: it means true on its
+// own no matter where it appears relative to the model id, and only reads an
+// explicit override when the exact literal "true"/"false" immediately
+// follows it - so "--yes false" and "--yes=false" both still refuse. Consent
+// is never widened to "any --yes token means yes".
+export function parseModelDownloadArgs(tokens) {
+  let consent = false;
+  let id = null;
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (token === "--yes") {
+      const next = tokens[i + 1];
+      if (next === "true" || next === "false") {
+        consent = next === "true";
+        i += 1;
+      } else {
+        consent = true;
+      }
+      continue;
+    }
+    if (id === null && !token.startsWith("--")) {
+      id = token;
+    }
+  }
+  return { id: id ?? "base.en", consent };
 }
 
 function renderAdapterInstall(report) {
@@ -381,6 +485,82 @@ async function runNaturalSpeechTurn(args, commandName, turn = null) {
 
   const contract = await analyzeCapturedTurn(report, transcript, args);
   return { report, contract };
+}
+
+// The engines `dictate` can actually run: registered for the "node" runtime AND
+// backed by a dispatchable adapter in src/transcribe/index.js.
+//
+// ENGINES is the registry for every surface, so it also lists browser-only
+// engines (whisper-wasm, webspeech). Those are correctly registered - the web
+// app renders from the same registry - but they have no Node implementation.
+// Validating against the full registry meant `dictate --engine whisper-wasm`
+// passed, RECORDED AUDIO, and only then died on a second, different "available
+// engines" list from transcribe() - wrapped by the fail-open handler into "your
+// recording was saved", a recovery message for a typo. One list, checked once,
+// before capture.
+export function dictatableEngines() {
+  return listEngines("node")
+    .map((engine) => engine.id)
+    .filter((id) => ADAPTERS.includes(id));
+}
+
+// Engine precedence for `dictate`: explicit flag, then environment, then the
+// shipped offline default. An unusable id throws here - before any capture -
+// with the one list that is true, so a typo never silently falls back to
+// something that uploads audio and never costs the user a recording.
+export function resolveDictateEngine(args, env = process.env) {
+  const id = args.engine ?? env.SUBTEXT_STT_ENGINE ?? "whisper";
+  const usable = dictatableEngines();
+  if (usable.includes(id)) return id;
+
+  const registered = ENGINES[id];
+  const reason = registered
+    ? `The '${id}' engine (${registered.label}) runs in the browser only and has no Node implementation.`
+    : `Unknown transcribe engine: ${id}.`;
+  throw new Error(`${reason} Available: ${usable.join(", ")}.`);
+}
+
+// The product loop in one function: get audio (recorded now, or a file the caller
+// already has), get words (from --text, or from the selected STT engine), then run
+// the same analyze + deliver path every other command uses.
+async function dictateFromArgs(args) {
+  const engine = resolveDictateEngine(args);
+
+  const report = args.audio
+    ? { schema: "subtext/capture/v1", audioPath: args.audio, recorder: "provided" }
+    : await captureFromArgs(args);
+
+  // Everything below this point runs AFTER audio is already safely on disk.
+  // Fail open: if transcription or analysis blows up here, the recording is
+  // never deleted, so the failure must say where it landed and how to recover
+  // it, rather than reading like the user's words are gone. A caller-supplied
+  // --audio file was already the user's own, so it gets no such rewrite - only
+  // audio *this command captured* is called out as recoverable.
+  try {
+    // An explicit --text short-circuits STT; it is how the tests and the offline
+    // demo path stay engine-independent.
+    let transcript = await transcriptFromArgs(args, "dictate_text", report.audioPath);
+
+    if (!transcript) {
+      const envelope = await transcribe(report.audioPath, {
+        adapter: engine,
+        command: args["transcript-command"],
+        apiKey: args["api-key"],
+        provider: args.provider,
+        model: args.model
+      });
+      transcript = normalizeTranscriptEnvelope(envelope, transcriptOverrides(args, `dictate_${engine}`));
+    }
+
+    const contract = await analyzeCapturedTurn(report, transcript, args);
+    return { report, contract, engine };
+  } catch (error) {
+    if (args.audio) throw error;
+    throw new Error(
+      `${error.message} Your recording was saved to ${report.audioPath} and was NOT deleted - ` +
+      `retry with: subtext analyze --audio ${report.audioPath} --text "<what you said>"`
+    );
+  }
 }
 
 async function runPttLoop(args) {

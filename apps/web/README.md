@@ -23,8 +23,16 @@ It understands **how** you said it, not just **what** you said.
 **Fallback:** if live transcription isn't available (e.g. Firefox), a textarea lets you type the
 transcript and still get the prosody from your recording.
 
-**Privacy:** capture, transcription, signal processing, and the contract all happen in the browser.
-There is no server and no upload — audio never leaves the tab.
+**Privacy:** capture, signal processing, and the `vocalcontext/v1` contract all happen in the
+browser — there is no server behind this page and your recording is never uploaded for analysis.
+Transcription is the exception: the Web Speech API is the browser's own recognizer, and in Chrome and
+Edge it sends your audio to Google. The engine badge sits directly above the recorder, is rendered on
+page load before any capture, cannot be dismissed, and names both the active engine and — when one
+receives your audio — the third party that gets it. In a browser with no Web Speech API the badge
+says so: you type the transcript and nothing is sent for recognition. The badge renders from
+`ENGINES` in [`src/transcribe/engines.js`](../../src/transcribe/engines.js), the same registry the
+CLI uses, so the two surfaces cannot disagree about egress. For zero egress, use the desktop app or
+type the transcript.
 
 ## Files
 

@@ -392,13 +392,30 @@ function parseExtraArgs(value) {
 async function locateFfmpeg() {
   if (process.env.FFMPEG_PATH && await exists(process.env.FFMPEG_PATH)) return process.env.FFMPEG_PATH;
 
+  // Windows first, and deliberately not via `sh`. Under Git Bash / MSYS,
+  // `command -v ffmpeg` prints a POSIX path like /c/Users/.../ffmpeg, which we
+  // then hand to yt-dlp.exe as --ffmpeg-location. yt-dlp is a native Windows
+  // binary and cannot resolve that form, so it reports "ffmpeg is not installed"
+  // even though ffmpeg is on PATH. `where` returns a native path.
+  if (process.platform === "win32") {
+    const where = await runMaybe("where", ["ffmpeg"]);
+    if (where.ok) {
+      const first = where.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0];
+      if (first && await exists(first)) return first;
+    }
+  }
+
   const system = await runMaybe("sh", ["-lc", "command -v ffmpeg"]);
-  if (system.ok && system.stdout.trim()) return system.stdout.trim();
+  if (system.ok && system.stdout.trim() && await exists(system.stdout.trim())) return system.stdout.trim();
 
   const imageio = await runMaybe("python3", ["-c", "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"]);
   if (imageio.ok && imageio.stdout.trim() && await exists(imageio.stdout.trim())) return imageio.stdout.trim();
 
-  throw new Error("Wild YouTube eval requires ffmpeg. Install ffmpeg, set FFMPEG_PATH, or install Python imageio-ffmpeg.");
+  throw new Error(
+    "Wild YouTube eval requires ffmpeg. Install ffmpeg and put it on PATH, set FFMPEG_PATH to the " +
+    "full path of the executable (on Windows use a native path such as " +
+    "C:\\path\\to\\ffmpeg.exe, not a Git Bash /c/... path), or install Python imageio-ffmpeg."
+  );
 }
 
 function parseCueTime(value) {

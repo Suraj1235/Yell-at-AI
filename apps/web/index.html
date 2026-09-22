@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<!-- Must be the first thing in the document, and within the first 1024 bytes:
+     without it the page decodes as the server's guess, and every em-dash in the
+     privacy copy below renders as mojibake under any host that serves .html
+     without a charset (including `python3 -m http.server`, which this repo's
+     README recommends for local runs). -->
+<meta charset="utf-8">
 <title>Yell at AI — it hears how you said it</title>
 <meta name="description" content="A model-free prosody engine that runs entirely in your browser. Speak, and it reads emphasis, urgency, hesitation, and affect from your voice — then hands your assistant the context behind your words.">
 <link rel="stylesheet" href="./style.css">
@@ -65,9 +72,11 @@
     <div class="how-head">
       <h2 id="how-title">Same words. Different meaning.<br>Your voice already knew.</h2>
       <p>
-        No model weights, no API key, no upload. A lightweight signal-processing pass
-        pulls grounded cues straight from the waveform and labels them with a confidence —
-        so the assistant can see the evidence, not guess at your mood.
+        No model weights, no API key, no server for the analysis. A lightweight
+        signal-processing pass pulls grounded cues straight from the waveform, in this page, and
+        labels them with a confidence — so the assistant can see the evidence, not guess at your
+        mood. (Turning speech into words is the exception — the badge on the recorder names the
+        engine and who receives your audio.)
       </p>
     </div>
     <ul class="how-grid" role="list">
@@ -116,6 +125,31 @@
           <span class="status-dot" id="status-dot"></span>
           <span id="status-text">Checking your browser…</span>
         </div>
+      </div>
+
+      <!--
+        Engine badge — persistent, non-dismissible, and ABOVE the recorder.
+        Design rule: any transcription engine that sends audio to a third party
+        must name that third party at the point of use, before the first take.
+        There is no dismiss control and nothing ever hides this element.
+
+        This static text is the pre-script state: it is true in every browser,
+        because it states both branches. app.js narrows it to the one that
+        actually applies (Web Speech + its vendor, or the typed fallback where
+        nothing is sent for recognition) as soon as the module runs on load,
+        long before any capture can begin.
+      -->
+      <div class="engine-badge" id="engine-badge" data-egress="pending" role="note">
+        <span class="engine-badge-mark" aria-hidden="true"></span>
+        <span class="engine-badge-body">
+          <strong class="engine-badge-title" id="engine-badge-title">Transcription engine — checking this browser</strong>
+          <span class="engine-badge-detail" id="engine-badge-detail">
+            Live transcription here is your browser's Web Speech API, and in Chrome and Edge that
+            sends your audio to Google for recognition. In browsers without it you type the
+            transcript and no audio is sent anywhere for recognition. Either way, the prosody
+            analysis runs on this device.
+          </span>
+        </span>
       </div>
 
       <!-- Recorder -->
@@ -211,16 +245,25 @@
 
   <!-- ───────────────────────── Privacy ───────────────────────── -->
   <section class="privacy" id="privacy" aria-labelledby="privacy-title">
-    <h2 id="privacy-title">Your voice never leaves this tab.</h2>
+    <h2 id="privacy-title">Your prosody never leaves this tab.</h2>
     <p>
-      Capture, transcription, signal processing, and the contract are all computed in your browser.
-      There is no server to send audio to. The same analysis engine ships in the command-line tool,
-      the editor adapters, and the native app — this page is just the front door.
+      The part that makes this product work — the signal processing, the emphasis scoring, the
+      affect reading, the whole <code>vocalcontext/v1</code> contract — is computed in your browser
+      from your recording. There is no server behind it and no model weights to load. The same
+      engine ships in the command-line tool, the editor adapters, and the desktop app.
+    </p>
+    <p>
+      <strong>Transcription is the honest exception.</strong> To turn your speech into words, this
+      page uses your browser's built-in Web Speech API — and in Chrome and Edge, that uploads your
+      audio to Google's servers for recognition. We will not pretend otherwise. The badge above the
+      recorder always names the engine in use, and names the company that receives your audio when
+      one does — before you press record, not after.
     </p>
     <ul class="privacy-points" role="list">
-      <li><span aria-hidden="true">∅</span> No upload — audio stays in memory</li>
-      <li><span aria-hidden="true">∅</span> No API key, no account</li>
-      <li><span aria-hidden="true">∅</span> No bundled model weights</li>
+      <li><span aria-hidden="true">∅</span> Prosody analysis is local — always, on every engine</li>
+      <li><span aria-hidden="true">∅</span> No API key, no account, no model weights</li>
+      <li><span aria-hidden="true">⚠</span> Web Speech transcription sends audio to Google</li>
+      <li><span aria-hidden="true">✓</span> Want zero egress? Use the desktop app, or type the transcript</li>
     </ul>
   </section>
 </main>
@@ -231,7 +274,7 @@
     A prosody evidence layer for assistants that should listen better.
   </p>
   <p class="foot-by">Built by Suraj Kuncham &amp; Manish Sampathirao · source-available for noncommercial use</p>
-  <p class="foot-fine">Live transcription works best in Chrome &amp; Edge. Everywhere else, type your transcript — the delivery still gets read from your recording.</p>
+  <p class="foot-fine">Live transcription uses the browser's Web Speech API and works best in Chrome &amp; Edge, where the audio is sent to Google for recognition. Everywhere else, type your transcript — the delivery is still read from your recording, on your device.</p>
 </footer>
 
 <script type="module" src="./app.js"></script>

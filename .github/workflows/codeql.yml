@@ -11,14 +11,19 @@ on:
 permissions:
   security-events: write
   contents: read
+  # Required by codeql-action/analyze on a PRIVATE repository: the step calls
+  # the workflow-runs REST API, and without this it fails with
+  # "Resource not accessible by integration". Granting it is what unblocks
+  # CodeQL here; it is read-only.
+  actions: read
 
 jobs:
   analyze:
     name: analyze
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4

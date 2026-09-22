@@ -15,7 +15,8 @@ speak a short line with one word leaned on. (Prefer local? Serve [`apps/web`](..
 static server — see [apps/web/README.md](../apps/web/README.md).)
 
 You will see the live transcript plus the vocal context Subtext reads from your delivery, with a copy
-button for the enriched prompt. Everything runs in the page - your audio never leaves the browser.
+button for the enriched prompt. The prosody analysis runs entirely in the page; transcription uses
+the browser's Web Speech API, which in Chrome and Edge uploads audio to Google for recognition.
 
 If your browser does not expose live dictation, the demo falls back to a text box: type the transcript
 and Subtext still analyzes the recording's prosody.

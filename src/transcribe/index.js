@@ -21,9 +21,11 @@
 //                discoverability but has no Node implementation.
 import { transcribeWithCommand } from "./command.js";
 import { transcribeWithWhisper } from "./whisper.js";
+import { transcribeWithCloud } from "./cloud.js";
 
 // Adapter names known to this interface. "webspeech" is a browser-only contract.
-export const ADAPTERS = ["command", "whisper", "webspeech"];
+export const ADAPTERS = ["command", "whisper", "cloud", "webspeech"];
+export { ENGINES, EGRESS_LEVELS, getEngine, listEngines, isOfflineEngine } from "./engines.js";
 export const DEFAULT_ADAPTER = "command";
 
 // transcribe(input, opts) -> Promise<envelope>
@@ -41,6 +43,10 @@ export async function transcribe(input, opts = {}) {
     return transcribeWithWhisper({ audio: input, ...rest });
   }
 
+  if (adapter === "cloud") {
+    return transcribeWithCloud({ audio: input, ...rest });
+  }
+
   if (adapter === "webspeech") {
     throw new Error("The 'webspeech' adapter is implemented in the browser, not in the Node transcribe interface.");
   }
@@ -50,3 +56,4 @@ export async function transcribe(input, opts = {}) {
 
 export { transcribeWithCommand } from "./command.js";
 export { transcribeWithWhisper, resolveWhisperBinary } from "./whisper.js";
+export { transcribeWithCloud, CLOUD_PROVIDERS } from "./cloud.js";
