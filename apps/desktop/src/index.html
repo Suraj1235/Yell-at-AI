@@ -220,6 +220,54 @@
           <textarea id="output" readonly></textarea>
         </label>
       </section>
+
+      <section style="margin-top:20px">
+        <h2 style="margin:0 0 8px;font-size:20px">Desktop shell</h2>
+        <p class="hint">
+          Hold <kbd id="hotkeyLabel">Ctrl+Alt+Y</kbd> to dictate and release to send; a quick tap
+          toggles instead, and <kbd>Esc</kbd> cancels. Tick <em>capture in this window</em> to record
+          through the WebView (microphone, live waveform in the overlay pill) instead of letting the
+          Node CLI record. This panel is the reference implementation of the contract in
+          <code>apps/desktop/CONTRACT.md</code>; the shared shell in <code>apps/shell/</code>
+          replaces it by pointing <code>frontendDist</code> at itself.
+        </p>
+
+        <label style="display:flex;align-items:center;gap:8px">
+          <input id="claimCapture" type="checkbox" style="width:auto">
+          Capture in this window (hold-to-talk through the WebView)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px">
+          <input id="autostart" type="checkbox" style="width:auto">
+          Launch at login
+        </label>
+
+        <div class="row">
+          <label>
+            Capture hotkey
+            <input id="hotkeyBinding" value="Ctrl+Alt+Y">
+          </label>
+          <button id="rebindButton" type="button">Rebind</button>
+        </div>
+
+        <div class="row">
+          <button id="pillShowButton" type="button">Show overlay pill</button>
+          <button id="pillHideButton" type="button">Hide overlay pill</button>
+        </div>
+
+        <button id="dictateButton" type="button">Dictate one turn from this window</button>
+        <output id="shellStatus">Idle</output>
+
+        <div class="row">
+          <label>
+            History (local only, last 100 turns)
+            <textarea id="historyView" readonly></textarea>
+          </label>
+        </div>
+        <div class="row">
+          <button id="historyRefreshButton" type="button">Refresh history</button>
+          <button id="historyClearButton" type="button">Delete all history</button>
+        </div>
+      </section>
     </main>
     <script>
       const loadConfigButton = document.querySelector("#loadConfigButton");
@@ -336,6 +384,322 @@
           if (payload.detail) output.value = payload.detail;
         });
       }
+    </script>
+
+    <script>
+      // Reference implementation of the PlatformAdapter contract in
+      // apps/desktop/CONTRACT.md. Capture happens here, in the WebView, so the
+      // desktop build needs no ffmpeg/sox/arecord: getUserMedia plus a plain
+      // 16-bit PCM WAV encoder, handed to Rust as bytes.
+      const shellStatus = document.querySelector("#shellStatus");
+      const claimCapture = document.querySelector("#claimCapture");
+      const autostart = document.querySelector("#autostart");
+      const hotkeyBinding = document.querySelector("#hotkeyBinding");
+      const hotkeyLabel = document.querySelector("#hotkeyLabel");
+      const rebindButton = document.querySelector("#rebindButton");
+      const pillShowButton = document.querySelector("#pillShowButton");
+      const pillHideButton = document.querySelector("#pillHideButton");
+      const dictateButton = document.querySelector("#dictateButton");
+      const historyView = document.querySelector("#historyView");
+      const historyRefreshButton = document.querySelector("#historyRefreshButton");
+      const historyClearButton = document.querySelector("#historyClearButton");
+
+      let capture = null;
+      let running = false;
+
+      function invoke(command, payload) {
+        const fn = window.__TAURI__?.core?.invoke;
+        if (!fn) return Promise.reject(new Error("Tauri invoke bridge is unavailable."));
+        return fn(command, payload);
+      }
+
+      function emitEvent(name, payload) {
+        const emit = window.__TAURI__?.event?.emit;
+        if (emit) emit(name, payload);
+      }
+
+      function say(text) {
+        shellStatus.value = text;
+      }
+
+      function setNativeStatus(state, detail) {
+        invoke("subtext_status_set", { request: { status: state, detail } }).catch(() => {});
+      }
+
+      // --- capture ---------------------------------------------------------
+
+      async function startCapture() {
+        if (capture) return;
+        // Tauri serves the app from *.localhost, which Chromium treats as a
+        // secure context, so mediaDevices should be there - but say something
+        // useful rather than "cannot read properties of undefined" if it is not.
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(
+            "This webview exposes no microphone API. Leave 'capture in this window' off and let the Node CLI record instead."
+          );
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: false }
+        });
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const source = context.createMediaStreamSource(stream);
+        const node = context.createScriptProcessor(4096, 1, 1);
+        const chunks = [];
+        node.onaudioprocess = (event) => {
+          const input = event.inputBuffer.getChannelData(0);
+          chunks.push(new Float32Array(input));
+          let peak = 0;
+          for (let index = 0; index < input.length; index += 1) {
+            const value = Math.abs(input[index]);
+            if (value > peak) peak = value;
+          }
+          // Feed the overlay pill so the waveform is the real signal, not a fake.
+          emitEvent("subtext://pill", { level: Math.min(1, peak * 2.2) });
+        };
+        source.connect(node);
+        node.connect(context.destination);
+        capture = { stream, context, source, node, chunks };
+      }
+
+      function stopCapture() {
+        if (!capture) return null;
+        const { stream, context, source, node, chunks } = capture;
+        capture = null;
+        node.onaudioprocess = null;
+        try { source.disconnect(); node.disconnect(); } catch (error) { /* already torn down */ }
+        stream.getTracks().forEach((track) => track.stop());
+        const sampleRate = context.sampleRate;
+        context.close().catch(() => {});
+        return { chunks, sampleRate };
+      }
+
+      /** 16-bit PCM mono WAV - the format the Subtext core already reads. */
+      function encodeWav(chunks, sampleRate) {
+        let length = 0;
+        for (const chunk of chunks) length += chunk.length;
+        const buffer = new ArrayBuffer(44 + length * 2);
+        const view = new DataView(buffer);
+        const ascii = (offset, text) => {
+          for (let index = 0; index < text.length; index += 1) {
+            view.setUint8(offset + index, text.charCodeAt(index));
+          }
+        };
+        ascii(0, "RIFF");
+        view.setUint32(4, 36 + length * 2, true);
+        ascii(8, "WAVE");
+        ascii(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        ascii(36, "data");
+        view.setUint32(40, length * 2, true);
+        let offset = 44;
+        for (const chunk of chunks) {
+          for (let index = 0; index < chunk.length; index += 1) {
+            const sample = Math.max(-1, Math.min(1, chunk[index]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+            offset += 2;
+          }
+        }
+        return new Uint8Array(buffer);
+      }
+
+      // --- the turn --------------------------------------------------------
+
+      async function beginTurn() {
+        if (running) return;
+        running = true;
+        try {
+          await startCapture();
+          setNativeStatus("listening", "Listening. Release to send.");
+          say("Listening...");
+        } catch (error) {
+          running = false;
+          setNativeStatus("failed", `Microphone unavailable: ${error.message}`);
+          say(`Microphone unavailable: ${error.message}`);
+        }
+      }
+
+      function cancelTurn() {
+        stopCapture();
+        running = false;
+        say("Cancelled. Nothing was inserted.");
+      }
+
+      async function endTurn() {
+        const recorded = stopCapture();
+        if (!recorded) {
+          running = false;
+          return;
+        }
+        setNativeStatus("thinking", "Transcribing and reading prosody...");
+        say("Transcribing...");
+
+        let staged = null;
+        let transcript = "";
+        try {
+          const wav = encodeWav(recorded.chunks, recorded.sampleRate);
+          staged = await invoke("subtext_stage_audio", {
+            request: { bytes: Array.from(wav) }
+          });
+          const result = await invoke("subtext_transcribe", {
+            request: { wavPath: staged.path }
+          });
+          transcript = result.text || "";
+          emitEvent("subtext://pill", { flags: result.contract?.affect?.meaning_cues ?? [] });
+
+          const prompt = await invoke("subtext_render", {
+            request: { contract: result.contract }
+          });
+          const inserted = await invoke("subtext_insert", { request: { text: prompt } });
+
+          await invoke("subtext_history_append", {
+            entry: {
+              text: transcript,
+              prompt,
+              contract: result.contract,
+              engine: result.engine?.id ?? null,
+              delivered: inserted.pasted
+            }
+          });
+
+          setNativeStatus(inserted.pasted ? "delivered" : "failed", inserted.detail);
+          say(inserted.detail);
+        } catch (error) {
+          // Gate 1: a failure after capture never loses the user's words. If we
+          // got as far as a transcript, it goes to the clipboard and history.
+          let detail = error.message ?? String(error);
+          if (transcript) {
+            try {
+              await invoke("subtext_insert", { request: { text: transcript, paste: false } });
+              await invoke("subtext_history_append", {
+                entry: { text: transcript, delivered: false }
+              });
+              detail += " Your transcript is on the clipboard and in history.";
+            } catch (fallbackError) {
+              detail += ` Recovery also failed: ${fallbackError.message ?? fallbackError}`;
+            }
+          }
+          setNativeStatus("failed", detail);
+          say(detail);
+        } finally {
+          if (staged) invoke("subtext_discard_audio", { path: staged.path }).catch(() => {});
+          running = false;
+          refreshHistory();
+        }
+      }
+
+      // --- controls --------------------------------------------------------
+
+      claimCapture.addEventListener("change", async () => {
+        try {
+          const state = await invoke("subtext_hotkey_claim", { claimed: claimCapture.checked });
+          say(
+            claimCapture.checked
+              ? `This window now handles ${state.accelerator}.`
+              : `The Node CLI handles ${state.accelerator} again.`
+          );
+        } catch (error) {
+          say(error.message);
+        }
+      });
+
+      rebindButton.addEventListener("click", async () => {
+        try {
+          const state = await invoke("subtext_hotkey_set", {
+            request: { accelerator: hotkeyBinding.value }
+          });
+          hotkeyLabel.textContent = state.accelerator;
+          say(`Hotkey is now ${state.accelerator}.`);
+        } catch (error) {
+          // A rebind the OS refuses must be loud, never silent.
+          say(error.message ?? String(error));
+        }
+      });
+
+      autostart.addEventListener("change", async () => {
+        try {
+          const enabled = await invoke("subtext_autostart_set", { enabled: autostart.checked });
+          autostart.checked = enabled;
+          say(enabled ? "Subtext will launch at login." : "Subtext will not launch at login.");
+        } catch (error) {
+          autostart.checked = !autostart.checked;
+          say(error.message ?? String(error));
+        }
+      });
+
+      pillShowButton.addEventListener("click", () => {
+        invoke("subtext_pill_show", { request: { anchor: { kind: "cursor" } } })
+          .then((placement) => say(`Overlay at ${placement.x},${placement.y}.`))
+          .catch((error) => say(error.message));
+      });
+
+      pillHideButton.addEventListener("click", () => {
+        invoke("subtext_pill_hide").catch((error) => say(error.message));
+      });
+
+      dictateButton.addEventListener("click", async () => {
+        if (running) {
+          await endTurn();
+          dictateButton.textContent = "Dictate one turn from this window";
+          return;
+        }
+        await beginTurn();
+        if (running) dictateButton.textContent = "Stop and send";
+      });
+
+      async function refreshHistory() {
+        try {
+          const entries = await invoke("subtext_history_list", { request: { limit: 20 } });
+          historyView.value = entries.length
+            ? entries
+                .map((entry) => `${new Date(entry.at).toLocaleString()}  ${entry.delivered ? "inserted" : "copied  "}  ${entry.text}`)
+                .join("\n")
+            : "No turns yet.";
+        } catch (error) {
+          historyView.value = error.message ?? String(error);
+        }
+      }
+
+      historyRefreshButton.addEventListener("click", refreshHistory);
+      historyClearButton.addEventListener("click", async () => {
+        try {
+          const removed = await invoke("subtext_history_clear");
+          say(`Deleted ${removed} turn${removed === 1 ? "" : "s"}.`);
+          refreshHistory();
+        } catch (error) {
+          say(error.message);
+        }
+      });
+
+      // --- native events ---------------------------------------------------
+
+      const listenEvents = window.__TAURI__?.event?.listen;
+      if (listenEvents) {
+        listenEvents("subtext://hotkey", (event) => {
+          const payload = event?.payload ?? {};
+          if (!payload.claimed) return;
+          if (payload.phase === "start") beginTurn();
+          if (payload.phase === "end") endTurn();
+          if (payload.phase === "cancel") cancelTurn();
+        });
+      }
+
+      invoke("subtext_hotkey_status")
+        .then((state) => {
+          hotkeyBinding.value = state.accelerator;
+          hotkeyLabel.textContent = state.accelerator;
+          claimCapture.checked = state.claimed;
+        })
+        .catch(() => {});
+      invoke("subtext_autostart_status")
+        .then((enabled) => { autostart.checked = enabled; })
+        .catch(() => {});
+      refreshHistory();
     </script>
   </body>
 </html>

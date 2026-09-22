@@ -1,89 +1,112 @@
-# Subtext Desktop (Windows push-to-talk dev build)
+# Subtext Desktop
 
-This is the native desktop surface for Yell-at-AI: a Tauri/Rust shell that gives
-the Node reference core a global push-to-talk hotkey on Windows. It is a working
-**developer build**, not a signed or installable product yet (see
-[Status and follow-ups](#status-and-follow-ups)).
+The native desktop shell for Yell-at-AI: a Tauri 2 / Rust app that gives the
+zero-dependency Node core a press-and-hold global hotkey, a floating overlay
+pill, a tray, and local turn history.
 
-## What it does
+It is a **developer build**. It is not a signed app, and it does not bundle
+Node - see [Status and follow-ups](#status-and-follow-ups).
 
-Press the global hotkey **`Ctrl+Alt+Y`** anywhere on Windows and the app runs one
-bounded natural-speech turn by invoking the existing Node CLI as a child-process
-sidecar:
+## The loop
 
-```sh
-node /absolute/path/to/Yell-at-AI/bin/subtext.js ptt \
-  --turns 1 \
-  --duration 4 \
-  --trigger none \
-  --transcript-command "host-transcript --json {audio}" \
-  --target paste \
-  --verbosity full
-```
+Hold **`Ctrl+Alt+Y`**, a small pill appears near the cursor with a live
+waveform, you speak, you release, and your words land in whatever app has focus
+with the `vocalcontext/v1` evidence block attached.
 
-The CLI records audio, bridges a transcript (via the configured transcript
-command, or the optional whisper STT adapter), runs prosody analysis, renders the
-enriched `<vocal-context>` prompt, and pastes it into whatever app currently has
-focus using the existing `src/handoff/paste.js` path. `--trigger none` makes the
-turn fire immediately — the hotkey press is the trigger, so no terminal Enter is
-needed.
+| Gesture | Behaviour |
+| --- | --- |
+| Hold ≥250 ms, release | Hold-to-talk. Capture starts on the press edge and **ends on release**. |
+| Tap (<250 ms) | Tap-to-toggle, for long dictation. The next tap ends the turn. |
+| `Esc` during a turn | Cancels. Nothing is inserted. |
 
-The capture is bounded and explicit: one turn per press, a fixed duration, and a
-re-entry guard that ignores a second press while a turn is still running. The
-desktop layer owns only the hotkey, the sidecar invocation, and the visible
-status — all recording, transcription, analysis, and rendering stay in the
-reference core.
+`Esc` is bound globally **only while a turn is live** and released the moment it
+ends, so an idle Subtext never holds the Escape key hostage.
 
-### Status surface
+The hotkey is rebindable at runtime. An accelerator the OS refuses - already
+claimed by another app, reserved by the shell - produces a clear error and the
+previous binding stays active. It never fails silently.
 
-Run state is shown three ways and stays in sync:
+## Two capture paths
 
-- a status banner in the app window (Ready / Listening / Delivered / Failed),
-- the window title,
-- the system-tray tooltip (when a tray icon is available).
+The desktop app can record in either of two places, and which one is live is an
+explicit choice:
 
-The window also keeps the original manual controls: a **Load Config** button and
-a **Record Bounded Turn** button that calls the `subtext_session` Tauri command
-directly (useful for testing without the global hotkey).
+1. **WebView capture (the product path).** Tick *capture in this window* and the
+   frontend records with `getUserMedia`, encodes a 16-bit PCM WAV in-page, and
+   hands the bytes to Rust. No ffmpeg, no `sox`, no `arecord`. Rust then calls
+   the Node CLI to transcribe and analyse, and inserts the result.
+2. **CLI capture (the original dev-build path, and the default).** Until a
+   frontend claims the hotkey with `subtext_hotkey_claim`, the press edge runs
+   one bounded turn through the Node CLI exactly as the first scaffold did:
+
+   ```sh
+   node /absolute/path/to/Yell-at-AI/bin/subtext.js ptt \
+     --turns 1 --duration 4 --trigger none \
+     --transcript-command "host-transcript --json {audio}" \
+     --target paste --verbosity full
+   ```
+
+Either way the capture is bounded and explicit: one turn per gesture, and a
+re-entry guard that ignores a second press while a turn is still running.
+
+## Never lose the user's words
+
+`subtext_insert` writes the clipboard **first**, then synthesises the paste
+keystroke (the same per-platform command as `src/handoff/paste.js`). If the
+keystroke does not land - no Accessibility permission on macOS, no `xdotool` or
+`wtype` on Linux - the text is still on the clipboard, the result says so, and
+the turn is still written to history. An insertion failure is not data loss.
+
+Every child-process call is timeout-bounded and the child is killed on timeout,
+so a wedged sidecar surfaces as an error rather than a hang.
+
+## Surfaces
+
+- **Overlay pill** - a second window (`pill`), 180×48 logical px, frameless,
+  transparent, always-on-top, skip-taskbar, **non-focusable**, and
+  click-through. It never steals focus from the app you are typing into. It is
+  hidden by default and shown for the duration of a turn.
+- **Tray** - status (Ready / Listening / Thinking / Delivered / Failed), open
+  the window, open the local history folder, quit.
+- **Window title and banner** - the same status, so all three agree.
+- **Launch at login** - a checkbox in the window, via `tauri-plugin-autostart`.
+- **History** - the last 100 turns, in a JSON file under the OS app-data
+  directory. Local only; the tray can open the folder so you can check.
+
+Mic active implies pill visible: visibility is driven by the Rust status path,
+not by the frontend, so there is no way to record with the overlay hidden.
 
 ## Prerequisites
 
 - **Node.js >= 20** on `PATH` (this repo's core is zero-dependency Node).
-- **Rust toolchain** (stable) — install from <https://rustup.rs>.
-- **Tauri CLI v2** and Windows WebView2 (preinstalled on Windows 11).
-
-Install the Tauri CLI once (either is fine):
+- **Rust toolchain** (stable) - <https://rustup.rs>.
+- **Tauri CLI v2** and a webview: WebView2 on Windows (preinstalled on
+  Windows 11), WebKitGTK on Linux, WKWebView on macOS.
+- On Windows, the **Microsoft C++ Build Tools** (the MSVC workload `rustup`
+  prompts for). Without them there is no linker and nothing - not even
+  `cargo check` - will build.
 
 ```sh
-# via npm (uses apps/desktop/package.json devDependency)
 cd apps/desktop
-npm install
-
-# or globally via cargo
-cargo install tauri-cli --version "^2.0.0"
+npm install                 # installs @tauri-apps/cli
+# or: cargo install tauri-cli --version "^2.0.0"
 ```
-
-On Windows you also need the Microsoft C++ Build Tools (the MSVC toolchain that
-`rustup` prompts you to install) and WebView2. WebView2 ships with Windows 11; on
-older Windows install the Evergreen runtime from Microsoft.
 
 ## Configure this checkout
 
-The hotkey path needs to know where this repo's CLI lives. Provide that either
-through environment variables or the generated config file (env vars win).
-
-Environment variables:
+The app needs to know where this repo's CLI lives. Environment variables win
+over the generated config file.
 
 ```sh
 # PowerShell
 $env:SUBTEXT_NODE = "node"
 $env:SUBTEXT_CLI_PATH = "C:\path\to\Yell-at-AI\bin\subtext.js"
 $env:SUBTEXT_TRANSCRIPT_COMMAND = "host-transcript --json {audio}"
+$env:SUBTEXT_STT_ENGINE = "whisper"
 $env:SUBTEXT_DESKTOP_CONFIG = "C:\path\to\Yell-at-AI\apps\desktop\subtext-desktop.generated.json"
 ```
 
-Or `apps/desktop/subtext-desktop.generated.json` (the adapter installer can write
-this; you can also create it by hand):
+Or `apps/desktop/subtext-desktop.generated.json`:
 
 ```json
 {
@@ -94,6 +117,7 @@ this; you can also create it by hand):
   "duration": 4,
   "target": "clipboard",
   "verbosity": "full",
+  "engine": "whisper",
   "hotkey": {
     "enabled": true,
     "accelerator": "Ctrl+Alt+Y",
@@ -102,83 +126,73 @@ this; you can also create it by hand):
 }
 ```
 
-Resolution order for each value: explicit Tauri-command argument (manual button)
--> environment variable -> generated config -> built-in default. The hotkey path
-uses the env var / config / default chain. If `subtextCliPath` is missing the app
-reports a clear "Missing Subtext CLI path" failure instead of running a broken
-turn.
+Resolution order for each value: explicit Tauri-command argument -> environment
+variable -> generated config -> built-in default. A missing `subtextCliPath`
+produces a clear "Missing Subtext CLI path" failure instead of a broken turn.
+`hotkey.accelerator` drives the registered shortcut; if it is absent or
+unparseable the app falls back to `Ctrl+Alt+Y` and says so on stderr.
 
-The `hotkey.accelerator` field drives the registered global shortcut. If it is
-absent or unparseable the app falls back to `Ctrl+Alt+Y`. The config's
-cross-platform placeholder string `Cmd+Alt+Ctrl+Y` is shown in the UI for
-reference; the **active Windows accelerator is `Ctrl+Alt+Y`**.
-
-## Run the dev build
-
-From `apps/desktop` (the Tauri CLI reads `src-tauri/tauri.conf.json`):
+## Run it
 
 ```sh
 cd apps/desktop
-
-# via npm script
-npm run tauri:dev
-
-# or with the cargo-installed CLI
-cargo tauri dev
+npm run tauri:dev      # or: cargo tauri dev
+npm run tauri:build    # unsigned installer; see below
 ```
 
-`tauri dev` compiles the Rust shell, launches the window, registers the global
-shortcut, and (when an app icon is available) creates a tray icon. Press
-`Ctrl+Alt+Y` (with a real `--transcript-command` configured) to capture a turn;
-the banner moves through Listening -> Delivered, and the enriched prompt is pasted
-into the focused app.
-
-No icon assets are checked in for this dev build, so there may be no tray icon and
-the window uses the platform default; status is still shown in the window banner
-and title. Adding `src-tauri/icons/` and a `bundle.icon` list is part of the
-packaging follow-up below. If your Tauri CLI version requires icons to launch,
-generate a placeholder set with `cargo tauri icon path/to/icon.png`.
-
-### Smoke check without audio hardware
-
-If you do not have a transcript command wired up, you can still verify the shell
-compiles and the wiring is correct:
+### Check it without audio hardware
 
 ```sh
-# from repo root, validate the scaffold's config/Rust/HTML invariants
-node scripts/validate-desktop-scaffold.mjs
+# from the repo root - validates the config/Rust/HTML invariants AND runs cargo check
+npm run desktop:check
 
-# type-check the Rust without producing a binary (needs the Rust toolchain)
-cd apps/desktop/src-tauri
-cargo check
+# just the Rust
+cd apps/desktop/src-tauri && cargo check
 ```
 
-## How the sidecar is wired
+`npm run desktop:check` runs `cargo check --all-targets` in the Tauri crate. If
+cargo is not on `PATH` it skips that step with an explicit message rather than
+pretending it compiled. `SUBTEXT_SKIP_CARGO=1` skips it deliberately.
 
-- **Hotkey:** registered with `tauri-plugin-global-shortcut`; the handler fires on
-  the `Pressed` edge of `Ctrl+Alt+Y`.
-- **Sidecar:** the turn is launched with `tauri-plugin-shell`
-  (`app.shell().command("node").args([...]).output()`), scoped in
-  `src-tauri/capabilities/default.json` to the `node` program. This shells out to
-  the repo's CLI rather than bundling a binary, so the same Node core is reused
-  verbatim. (Bundling Node as a true Tauri `externalBin` sidecar is a follow-up;
-  see below.)
-- **Paste:** delegated to the CLI's `--target paste`, which uses the existing
-  cross-platform paste handoff (`SendKeys ^v` on Windows).
+## Icons
+
+`src-tauri/icons/` is generated, not hand-drawn:
+
+```sh
+node apps/desktop/scripts/generate-icons.mjs
+```
+
+The script draws a dark rounded square with a teal-to-violet waveform - the
+landing page's palette - and writes the PNG, `.ico`, and `.icns` set with no
+dependencies. They are on-brand **placeholders**, not finished brand assets.
+`tauri-build` refuses to build on Windows without `icons/icon.ico`, so they have
+to exist for the crate to compile at all.
+
+## Extending or replacing the frontend
+
+`apps/desktop/src/` is self-contained and is the reference implementation of the
+window / command / event contract. The shared shell at `apps/shell/` replaces it
+by pointing `frontendDist` at itself. **The contract is documented in
+[CONTRACT.md](CONTRACT.md)** - windows, events, commands, and what each side
+owns.
 
 ## Status and follow-ups
 
-This is a **dev build**. It is not a signed app, installer, background service,
-or marketplace package. Concretely out of scope for now, tracked as documented
-follow-ups:
+This is a **dev build**. Concretely out of scope for now:
 
-- **Code-signed `.msi` installer.** Producing a signed Windows installer
-  (`tauri build` with an Authenticode certificate and `bundle.active = true`) is a
-  deliberate follow-up. `bundle.active` is currently `false` and no signing is
-  attempted.
-- **Bundled Node sidecar.** Shipping Node as a true Tauri `externalBin` so end
-  users do not need Node on `PATH`.
-- **Hardened capture UX.** Push-to-hold capture, device selection in-app, and
-  calibration entry points.
+- **Code signing.** `bundle.active` is `true`, so `tauri build` produces
+  installers, but nothing is signed - no Authenticode certificate and no Apple
+  Developer ID exists yet. Unsigned means SmartScreen and Gatekeeper warnings.
+  This is not a signed app.
+- **Bundled Node / whisper sidecar.** The app shells out to `node` on `PATH`.
+  Shipping them as true Tauri `externalBin` entries is a separate task.
+- **SQLite history.** History is a capped JSON file; the command surface is the
+  same either way.
+- **Per-app insertion rules** (full `<vocal-context>` for AI apps, plain text for
+  Slack and email) live in the shell, not here.
+- **Native Android/iOS.** The crate has the `[lib]` target and `pub fn run()`
+  that `tauri android init` / `tauri ios init` require; the desktop-only plugins
+  still need target-gating when that lands. See CONTRACT.md §5.
 
-When that hardening lands, this is the checked-in native track it builds on.
+Verified on Windows only so far. The Rust is `cfg`-guarded for macOS and Linux
+(paste command, folder opener, transparency) but has not been built on them.

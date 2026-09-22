@@ -34,3 +34,21 @@ jobs:
       - run: npm ci
       - run: npm run bench
       - run: npm run eval:judge
+
+  # The Tauri crate under apps/desktop sat non-compiling for months because
+  # nothing in CI ever asked cargo for an opinion. This job does. windows-latest
+  # is the primary desktop target and ships rustup plus the MSVC linker, so no
+  # third-party toolchain action is needed. ubuntu/macos legs are a follow-up:
+  # Linux needs the webkit2gtk/gtk3/appindicator/rsvg dev packages first.
+  desktop-check:
+    name: desktop-check (windows-latest)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - run: npm ci
+      - run: npm run desktop:check

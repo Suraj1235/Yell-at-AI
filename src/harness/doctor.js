@@ -80,14 +80,25 @@ const CHECKS = {
         && value.build?.frontendDist === "../src"
         && value.app?.withGlobalTauri === true
     )),
-    textFile("Desktop Rust bridge", "apps/desktop/src-tauri/src/main.rs", (value) => (
+    // The crate uses the standard Tauri 2 layout: a thin main.rs that calls
+    // subtext_desktop::run(), with the logic split across modules. Each check
+    // below reads the file that actually owns the thing it asserts, so moving
+    // code can never be satisfied by a comment that happens to mention it.
+    textFile("Desktop library entrypoint", "apps/desktop/src-tauri/src/lib.rs", (value) => (
+      value.includes("pub fn run")
+    )),
+    textFile("Desktop command surface", "apps/desktop/src-tauri/src/commands.rs", (value) => (
       value.includes("#[tauri::command]")
         && value.includes("subtext_load_config")
         && value.includes("subtext_session")
-        && value.includes("subtext/desktop-config/v1")
+        && value.includes("subtext_insert")
         && value.includes("--transcript-command")
+    )),
+    textFile("Desktop config resolution", "apps/desktop/src-tauri/src/config.rs", (value) => (
+      value.includes("subtext/desktop-config/v1")
         && value.includes("SUBTEXT_CLI_PATH")
     )),
+    file("Desktop shell contract", "apps/desktop/CONTRACT.md"),
     file("Desktop scaffold docs", "docs/NATIVE_DESKTOP.md")
   ],
   universal: [
