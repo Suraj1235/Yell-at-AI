@@ -786,6 +786,47 @@ body[data-state="idle"] .pill-layer[data-visibility="active"]:focus-within .pill
   padding: 4px 9px;
 }
 
+/* ───────────────────────── Toast ─────────────────────────
+   Same material as the pill, directly above it: this is the pill talking,
+   not a notification from elsewhere in the app. */
+.toast {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  max-width: min(92vw, 460px);
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--pill-h) / 2);
+  background: rgba(17, 19, 23, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+  animation: toast-in 0.22s var(--ease) both;
+}
+.toast[hidden] { display: none; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.toast-text { font: 500 12.5px var(--sans); color: var(--ink-dim); }
+.toast-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.toast-action {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 11px;
+  color: var(--cool-bright);
+  font: 600 12.5px var(--sans);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.toast-action:hover { background: rgba(54, 214, 195, 0.1); }
+.toast-action + .toast-action { box-shadow: -1px 0 0 var(--line); }
+
 /* ───────────────────────── Onboarding ───────────────────────── */
 .onboard {
   position: fixed;

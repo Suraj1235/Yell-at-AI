@@ -25,6 +25,7 @@ import { createSettings, DEFAULTS } from "./settings.js";
 import { createOnboarding } from "./onboarding.js";
 import { createHotkey, bindPillGesture, BINDINGS, getBinding } from "./hotkey.js";
 import { createPing } from "./ping.js";
+import { createToast } from "./toast.js";
 import { createLiveReader, rmsOf } from "./live.js";
 import { createEvidence } from "./evidence.js";
 
@@ -58,6 +59,7 @@ async function boot() {
   badge.render({ canCapture: capabilities.capture, engine: saved.engine });
 
   const pill = createPill({ root, machine, announce });
+  const toast = createToast(root, { announce });
   const turnListeners = new Set();
 
   /* ── baseline ─────────────────────────────────────────────────────────
@@ -139,6 +141,8 @@ async function boot() {
     }
 
     clearError();
+    toast.hide();
+    cancelled = null; // a new turn ends the previous one's right to be undone
     if (!machine.can("listening")) machine.to("idle");
     machine.to("listening");
     live.reset();
@@ -200,15 +204,62 @@ async function boot() {
     await completeTurn(take, heard.text, heard.source);
   }
 
+  // Cancel inserts nothing and writes nothing to history — but it does not
+  // shred the take. The microphone is released in the same tick, and the audio
+  // stays in memory only until the toast goes away, so "Undo" can produce
+  // exactly the turn the cancel prevented. When the toast dismisses, or the
+  // next turn starts, the reference is dropped.
+  let cancelled = null;
+
   function cancelTurn() {
     window.clearTimeout(stopAt);
-    capture?.cancel();
-    recogniser?.cancel();
+    const capturing = capture;
+    const hearing = recogniser;
     capture = null;
     recogniser = null;
+    cancelled = null;
     hotkey.clearLatch();
+    pill.setWarning(null);
     if (machine.state === "listening" || machine.state === "thinking") machine.to("idle");
-    announce("Cancelled. Nothing was inserted.");
+
+    if (!capturing) {
+      announce("Cancelled. Nothing was inserted.");
+      return;
+    }
+
+    // Releases the microphone now; the samples are what Undo would need.
+    const held = Promise.all([
+      capturing.stop(),
+      hearing ? hearing.stop().catch(() => ({ text: "" })) : Promise.resolve({ text: "" })
+    ]).then(([take, heard]) => ({ take, text: heard.text || "" }));
+    cancelled = held;
+
+    toast.show({
+      message: "Cancelled. Nothing was inserted.",
+      actions: [
+        { label: "Undo", run: () => undoCancel(held) },
+        { label: "Open history", run: () => show("history") }
+      ],
+      onDismiss: () => { if (cancelled === held) cancelled = null; }
+    });
+  }
+
+  async function undoCancel(held) {
+    const saved = await held;
+    cancelled = null;
+    if (!saved?.take || machine.state === "listening" || machine.state === "thinking") return;
+    if (machine.state !== "idle") machine.to("idle");
+    machine.to("listening");
+    machine.to("thinking");
+    if (!saved.text) {
+      // No words were heard, so there is nothing to align the stress to. The
+      // take comes back to the transcript field instead of being thrown away.
+      lastTake = saved.take;
+      machine.to("idle");
+      askForWords();
+      return;
+    }
+    await completeTurn(saved.take, saved.text, "webspeech");
   }
 
   async function completeTurn(take, text, source) {

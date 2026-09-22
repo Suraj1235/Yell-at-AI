@@ -35,6 +35,7 @@ const SHELL = [
   "./core/ping.js",
   "./core/settings.js",
   "./core/state.js",
+  "./core/toast.js",
   "./core/waveform.js",
   "./platform/platform.web.js",
   // The engine itself, vendored beside the landing page and shared with it.
