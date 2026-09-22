@@ -23,7 +23,8 @@ import { createBadge } from "./badge.js";
 import { createHistory } from "./history.js";
 import { createSettings, DEFAULTS } from "./settings.js";
 import { createOnboarding } from "./onboarding.js";
-import { createHotkey, bindPointerHold, BINDINGS, getBinding } from "./hotkey.js";
+import { createHotkey, bindPillGesture, BINDINGS, getBinding } from "./hotkey.js";
+import { createPing } from "./ping.js";
 import { createLiveReader, rmsOf } from "./live.js";
 import { createEvidence } from "./evidence.js";
 
@@ -83,6 +84,8 @@ async function boot() {
   });
 
   /* ── settings ───────────────────────────────────────────────────────── */
+  const ping = createPing({ enabled: saved.ping !== "off" });
+
   const settings = createSettings({
     root,
     store,
@@ -90,11 +93,14 @@ async function boot() {
     onChange: (values) => {
       badge.render({ canCapture: capabilities.capture, engine: values.engine });
       hotkey.setBinding(getBinding(values.hotkey));
+      ping.setEnabled(values.ping !== "off");
+      pill.setVisibility(values.pill);
       applyHint();
     },
     onRecalibrate: () => onboarding.start(getBinding(settings.values.hotkey))
   });
   await settings.load(capabilities);
+  pill.setVisibility(saved.pill);
   settings.showBaseline(stored, baselineSource, Boolean(baseline));
 
   /* ── history ────────────────────────────────────────────────────────── */
@@ -136,6 +142,9 @@ async function boot() {
     if (!machine.can("listening")) machine.to("idle");
     machine.to("listening");
     live.reset();
+    // Before the microphone opens, so the cue marks the gesture rather than
+    // the permission round-trip.
+    ping.play();
 
     try {
       capture = await platform.capture({
@@ -164,6 +173,9 @@ async function boot() {
   async function finishTurn() {
     if (machine.state !== "listening" || !capture) return;
     window.clearTimeout(stopAt);
+    // However the turn ends — key, pill, auto-stop — hands-free ends with it,
+    // or the key and the pill would disagree about whether one is running.
+    hotkey.clearLatch();
     machine.to("thinking");
 
     const take = await capture.stop();
@@ -244,8 +256,12 @@ async function boot() {
     for (const listener of turnListeners) listener(turn);
 
     const result = await platform.insert(block);
+    // The label names what actually happened to the words. On the web that is
+    // the clipboard; the desktop adapter puts them into the focused app and
+    // says "Inserted". Neither word is ever a euphemism for editing them.
     if (machine.state === "thinking") {
-      machine.to("inserted", { message: result.ok ? "Copied — paste it anywhere" : "Saved to history" });
+      const landed = result.method === "focused-app" ? "Inserted" : "Copied";
+      machine.to("inserted", { message: result.ok ? landed : "Saved to history" });
     }
     if (!result.ok) {
       showError("The clipboard refused the write. The block is on screen and in history — copy it from there.");
@@ -337,17 +353,38 @@ async function boot() {
   });
 
   /* ── input ──────────────────────────────────────────────────────────── */
+  // Opening the microphone is asynchronous; the gesture that ends a turn can
+  // arrive before it finishes opening. Every path that ends or changes a turn
+  // waits on the same promise first, which is what stops a quick tap from
+  // stopping a turn that has not started yet and leaving the microphone open.
+  let pendingStart = null;
+  const begin = () => { pendingStart = startTurn(); };
+  const settled = async () => { try { await pendingStart; } catch { /* startTurn reports its own failures */ } };
+
   const hotkey = createHotkey({
     binding: getBinding(saved.hotkey),
-    onPress: () => startTurn(),
-    onRelease: () => finishTurn(),
+    onPress: begin,
+    onRelease: async () => { await settled(); finishTurn(); },
     onCancel: () => cancelTurn(),
-    onLatch: () => announce("Recording until you press the key again.")
+    onLatch: async () => { await settled(); enterHandsFree(); }
   });
 
-  bindPointerHold(pill.hit, {
-    onPress: () => { if (machine.state !== "listening") startTurn(); },
-    onRelease: () => { if (machine.state === "listening") finishTurn(); }
+  // Hands-free, reached three ways — double-tap the key, click the pill, or
+  // press the key once while a click-started turn is running. All three land
+  // here so the pill, the key and the announcement can never disagree about
+  // whether the microphone is still open.
+  function enterHandsFree() {
+    if (machine.state !== "listening") return;
+    hotkey.latch();
+    pill.setHandsFree(true);
+    announce(`Hands-free. Press ${getBinding(settings.values.hotkey).label} or click the pill to stop.`);
+  }
+
+  bindPillGesture(pill.hit, {
+    isActive: () => machine.state === "listening",
+    onStart: begin,
+    onStop: async () => { await settled(); if (machine.state === "listening") finishTurn(); },
+    onHandsFree: async () => { await settled(); enterHandsFree(); }
   });
 
   function applyHint() {
@@ -436,6 +473,9 @@ async function boot() {
     get liveCostMs() { return live.lastCostMs; },
     get liveEnabled() { return live.enabled; },
     get tint() { return pill.waveform.tint; },
+    get handsFree() { return hotkey.latched; },
+    get pingAudible() { return ping.audible; },
+    get settings() { return { ...settings.values }; },
     show,
     startTurn,
     finishTurn,

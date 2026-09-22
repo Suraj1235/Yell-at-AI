@@ -242,11 +242,26 @@ body {
 
 /* ───────────────────────── Dictate stage ───────────────────────── */
 .stage-lede {
-  margin: 0 0 30px;
+  margin: 0 0 8px;
   max-width: 46ch;
   color: var(--ink-dim);
   font-size: 17px;
   line-height: 1.55;
+}
+.stage-hint {
+  margin: 0 0 30px;
+  max-width: 52ch;
+  color: var(--ink-faint);
+  font-size: 13.5px;
+}
+.view-note {
+  margin: 8px 0 0;
+  max-width: 58ch;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.55;
+  padding-left: 12px;
+  border-left: 2px solid var(--cool-deep);
 }
 
 .key {
@@ -667,13 +682,62 @@ body {
 /* idle — minimal resting capsule */
 .pill[data-state="idle"] { width: max-content; min-width: 180px; }
 
-/* listening */
-.pill[data-state="listening"] { border-color: rgba(255, 122, 24, 0.45); }
+/* listening — the rim carries the live reading too, so the thing you catch in
+   the corner of your eye is the same number the waveform is drawing. */
+.pill[data-state="listening"] {
+  border-color: rgba(255, 122, 24, calc(0.32 + 0.55 * var(--live-tint, 0)));
+  box-shadow:
+    0 18px 40px -22px rgba(0, 0, 0, 0.9),
+    0 0 calc(4px + 18px * var(--live-tint, 0)) rgba(255, 122, 24, calc(0.10 + 0.34 * var(--live-tint, 0)));
+}
 .pill[data-state="listening"] .pill-lamp { background: var(--hot); box-shadow: 0 0 12px var(--hot); animation: lamp 1.05s steps(2, start) infinite; }
 .pill[data-state="listening"] .pill-scope { display: block; }
 .pill[data-state="listening"] .pill-msg { display: none; }
 .pill[data-state="listening"] .pill-elapsed { display: block; color: var(--hot-bright); }
 @keyframes lamp { 50% { opacity: 0.3; } }
+
+/* hands-free — the lamp becomes a stop square, because the gesture that ends
+   this turn is a press rather than a release, and the mark should say so. */
+.pill[data-mode="hands-free"] .pill-lamp {
+  width: 11px; height: 11px;
+  border-radius: 2px;
+  animation: none;
+  background: var(--hot-bright);
+  box-shadow: 0 0 10px rgba(255, 162, 76, 0.8);
+}
+.pill[data-mode="hands-free"] .pill-elapsed::after {
+  content: "hands-free";
+  margin-left: 8px;
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+/* the stop warning, above the pill */
+.pill-warn {
+  margin: 0;
+  pointer-events: none;
+  max-width: min(92vw, 420px);
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 179, 71, 0.4);
+  border-radius: var(--radius-sm);
+  background: rgba(17, 19, 23, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--flag-amber);
+  font: 500 12.5px var(--sans);
+  text-align: center;
+}
+.pill-warn[hidden] { display: none; }
+.pill[data-warn="true"] { border-color: rgba(255, 179, 71, 0.6); }
+
+/* ── visibility: "only while active" ──────────────────────────────────────
+   The resting mark goes away; the pill itself does not. It comes back for
+   every state that is not idle, and for keyboard focus, so the thing is never
+   unreachable — it is just not sitting there when nothing is happening. */
+.pill-layer[data-visibility="active"] .pill { transition: opacity 0.22s var(--ease), width 0.28s var(--ease); }
+body[data-state="idle"] .pill-layer[data-visibility="active"] .pill { opacity: 0; pointer-events: none; }
+body[data-state="idle"] .pill-layer[data-visibility="active"]:focus-within .pill { opacity: 1; pointer-events: auto; }
 
 /* thinking — a single shimmer sweep, the only decorative motion in the app */
 .pill[data-state="thinking"] .pill-lamp { background: var(--cool-deep); }

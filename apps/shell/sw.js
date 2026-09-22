@@ -32,6 +32,7 @@ const SHELL = [
   "./core/live.js",
   "./core/onboarding.js",
   "./core/pill.js",
+  "./core/ping.js",
   "./core/settings.js",
   "./core/state.js",
   "./core/waveform.js",
