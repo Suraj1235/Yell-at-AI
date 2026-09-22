@@ -6,9 +6,9 @@ The northstar desktop app is a signed, visible, global-hotkey capture surface th
 
 - Tauri v2 config at `apps/desktop/src-tauri/tauri.conf.json`
 - Rust command bridge at `apps/desktop/src-tauri/src/main.rs`
-- Local HTML control surface at `apps/desktop/src/index.html`
+- The shared product shell (`apps/shell/`, adapter `platform/platform.tauri.js`) as the frontend, staged by `apps/desktop/src-tauri/build.rs`
 - Installer-generated config path at `apps/desktop/subtext-desktop.generated.json`
-- Explicit Tauri global bridge enablement for the plain HTML scaffold UI
+- Explicit Tauri global bridge enablement (`withGlobalTauri`) so the shell's vanilla ES modules reach `invoke()` with no bundler
 - Tauri config loader command `subtext_load_config` for `subtext/desktop-config/v1`
 - Bounded session command `subtext_session` with guarded `stdout`, `clipboard`, and `paste` targets
 
