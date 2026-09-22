@@ -352,6 +352,11 @@ fn cancel_turn(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
 }
 
 /// Esc only exists as a global binding for the duration of a turn.
+///
+/// Both of these run OFF the shortcut-handler thread. The global-shortcut
+/// plugin holds its own `shortcuts` mutex for the whole duration of the handler
+/// call, and `register`/`unregister` take that same non-reentrant mutex - doing
+/// it inline would deadlock the app on the first press.
 fn arm_cancel(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
     let already = runtime
         .inner
@@ -361,12 +366,16 @@ fn arm_cancel(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
     if already {
         return;
     }
-    if app.global_shortcut().register(cancel_shortcut()).is_ok() {
-        if let Ok(mut guard) = runtime.inner.lock() {
-            guard.cancel_registered = true;
+    let app = app.clone();
+    let runtime = runtime.clone();
+    tauri::async_runtime::spawn(async move {
+        // A refused Esc binding is not fatal: the turn still ends on release.
+        if app.global_shortcut().register(cancel_shortcut()).is_ok() {
+            if let Ok(mut guard) = runtime.inner.lock() {
+                guard.cancel_registered = true;
+            }
         }
-    }
-    // A refused Esc binding is not fatal: the turn still ends on release.
+    });
 }
 
 fn disarm_cancel(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
@@ -378,10 +387,15 @@ fn disarm_cancel(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
     if !registered {
         return;
     }
-    let _ = app.global_shortcut().unregister(cancel_shortcut());
+    // Claim it immediately so a second end/cancel cannot queue a second
+    // unregister; the spawned task only has to do the plugin call.
     if let Ok(mut guard) = runtime.inner.lock() {
         guard.cancel_registered = false;
     }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = app.global_shortcut().unregister(cancel_shortcut());
+    });
 }
 
 fn emit(
