@@ -18,3 +18,6 @@ eval/wild/out/
 
 # Tauri regenerates this on every build (capability schemas); never commit it.
 apps/desktop/src-tauri/gen/
+
+# Local git worktrees used for isolated parallel builds.
+.worktrees/
