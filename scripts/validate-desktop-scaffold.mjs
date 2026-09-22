@@ -170,12 +170,16 @@ function runCargoCheck() {
   }
 
   process.stderr.write("desktop:check: running cargo check in apps/desktop/src-tauri...\n");
+  // stderr is captured rather than inherited so the thrown error can carry the
+  // decisive lines. A CI log or a skimming contributor otherwise sees only
+  // "exit code 101" at the bottom and has to scroll for the cause.
   const result = spawnSync("cargo", ["check", "--all-targets"], {
     cwd: "apps/desktop/src-tauri",
     encoding: "utf8",
     timeout: CARGO_TIMEOUT_MS,
-    stdio: ["ignore", "pipe", "inherit"]
+    stdio: ["ignore", "pipe", "pipe"]
   });
+  if (result.stderr) process.stderr.write(result.stderr);
 
   if (result.error && result.error.code === "ETIMEDOUT") {
     throw new Error(`desktop:check: cargo check exceeded ${CARGO_TIMEOUT_MS} ms.`);
@@ -183,12 +187,37 @@ function runCargoCheck() {
   if (result.error) {
     throw new Error(`desktop:check: could not run cargo check: ${result.error.message}`);
   }
-  assert.equal(
-    result.status,
-    0,
-    `desktop:check: cargo check failed with exit code ${result.status}. ` +
-    "The desktop crate does not compile; see the cargo output above."
-  );
+  if (result.status !== 0) {
+    throw new Error(describeCargoFailure(result.status, result.stderr ?? ""));
+  }
 
   return { ran: true, version: probe.stdout.trim() };
+}
+
+/**
+ * Turn a failed `cargo check` into an error that names the cause. The most
+ * common way this fails on a fresh Windows machine is not the crate at all:
+ * the default toolchain is *-pc-windows-msvc, which needs the MSVC linker,
+ * and without Visual Studio Build Tools `link.exe` resolves to nothing (or,
+ * under Git Bash, to coreutils' `link`). That case gets a specific hint;
+ * everything else gets the last lines cargo printed.
+ */
+function describeCargoFailure(status, stderr) {
+  const lines = stderr.split(/\r?\n/).map((line) => line.trimEnd()).filter(Boolean);
+  const decisive = lines.filter((line) => /^error(\[|:)|linker|link\.exe|windres|dlltool|not found|panicked/i.test(line));
+  const tail = (decisive.length ? decisive : lines).slice(-6).join("\n  ");
+
+  const linkerProblem = /linker `?link\.exe`? not found|link\.exe|linking with|windres|dlltool|NotAttempted/i.test(stderr);
+  const hint = linkerProblem
+    ? "\n\ndesktop:check: this looks like a missing native toolchain, not a bug in the crate.\n" +
+      "  On Windows either install Visual Studio Build Tools (Desktop development with C++), or use\n" +
+      "  the GNU toolchain: `rustup toolchain install stable-x86_64-pc-windows-gnu` plus a MinGW\n" +
+      "  distribution such as WinLibs for windres/dlltool, then run with\n" +
+      "  RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu. Set SUBTEXT_SKIP_CARGO=1 to skip this step."
+    : "";
+
+  return (
+    `desktop:check: cargo check failed with exit code ${status}. The desktop crate did not compile.\n` +
+    `  ${tail}${hint}`
+  );
 }
