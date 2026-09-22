@@ -77,9 +77,22 @@ const CHECKS = {
     jsonFile("Tauri desktop config", "apps/desktop/src-tauri/tauri.conf.json", (value) => (
       value.productName === "Subtext Desktop"
         && value.identifier === "ai.subtext.desktop"
-        && value.build?.frontendDist === "../src"
+        // The desktop frontend is the shared shell, staged by build.rs next to
+        // the vendored engine it imports (see apps/desktop/CONTRACT.md §0).
+        && value.build?.frontendDist === "gen/frontend"
+        && value.app?.windows?.some((window) => window.label === "main" && window.url === "shell/index.html")
+        && value.app?.windows?.some((window) => window.label === "pill" && window.url === "shell/pill.html")
         && value.app?.withGlobalTauri === true
     )),
+    textFile("Desktop frontend staging", "apps/desktop/src-tauri/build.rs", (value) => (
+      value.includes("../../shell") && value.includes("../../web/vendor")
+    )),
+    file("Shared shell (main window)", "apps/shell/index.html"),
+    file("Shared shell (overlay pill)", "apps/shell/pill.html"),
+    textFile("Shell desktop adapter", "apps/shell/platform/platform.tauri.js", (value) => (
+      value.includes("subtext_hotkey_claim") && value.includes("subtext_insert") && !value.includes("NotWiredError")
+    )),
+    file("Vendored engine", "apps/web/vendor/index.browser.js"),
     // The crate uses the standard Tauri 2 layout: a thin main.rs that calls
     // subtext_desktop::run(), with the logic split across modules. Each check
     // below reads the file that actually owns the thing it asserts, so moving
