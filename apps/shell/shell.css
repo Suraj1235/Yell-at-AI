@@ -965,10 +965,85 @@ body[data-state="idle"] .pill-layer[data-visibility="active"]:focus-within .pill
 .onboard-rail li[aria-current="step"] { border-top-color: var(--hot); color: var(--hot-bright); }
 
 .onboard-title { margin: 0 0 8px; font: 600 21px/1.25 var(--sans); letter-spacing: -0.015em; }
-.onboard-body { margin: 0 0 18px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.55; max-width: 44ch; }
+.onboard-body { margin: 0 0 14px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.55; max-width: 44ch; }
+.onboard-claim {
+  margin: 0 0 18px;
+  padding-left: 12px;
+  border-left: 2px solid var(--cool-deep);
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 46ch;
+}
+.onboard-claim[hidden] { display: none; }
 .onboard-slot:empty { display: none; }
 .onboard-status { margin: 14px 0 0; font: 500 12.5px var(--mono); color: var(--ink-faint); min-height: 1.2em; }
 .onboard-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.onboard-right { display: flex; align-items: center; gap: 10px; }
+
+/* The level meter. Not a promise that the microphone works — a demonstration
+   that it does, which is a different kind of sentence. */
+.levels {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 56px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+.levels i {
+  flex: 1;
+  min-width: 2px;
+  height: max(2px, calc(100% * var(--h, 0)));
+  border-radius: 2px;
+  background: var(--ink-ghost);
+}
+.levels[data-live="true"] i { background: linear-gradient(180deg, var(--cool-bright), var(--cool-deep)); }
+
+/* The three beats of a first turn, lit as they happen. */
+.beats { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.beat {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink-faint);
+  font: 500 13.5px var(--sans);
+}
+.beat::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ink-ghost);
+  flex: none;
+}
+.beat[data-state="now"] {
+  border-color: rgba(255, 122, 24, 0.35);
+  background: rgba(255, 122, 24, 0.06);
+  color: var(--ink);
+}
+.beat[data-state="now"]::before { background: var(--hot); box-shadow: 0 0 10px var(--hot); }
+.beat[data-state="done"] { color: var(--ink-dim); }
+.beat[data-state="done"]::before { background: var(--cool); box-shadow: 0 0 8px rgba(54, 214, 195, 0.7); }
+.beat-keys { display: inline-flex; gap: 2px; margin-left: auto; }
+.beat-quote { font-family: var(--serif); font-size: 15px; color: var(--ink-dim); }
+
+/* The dismissed-permission path. */
+.recover {
+  margin-top: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--flag-amber);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+.recover strong { display: block; font: 600 13px var(--sans); color: var(--flag-amber); margin-bottom: 4px; }
+.recover p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-faint); }
 
 .calib-line {
   margin: 0;

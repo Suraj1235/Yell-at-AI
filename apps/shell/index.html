@@ -232,12 +232,16 @@
 
     <h2 class="onboard-title" id="onboard-title"></h2>
     <p class="onboard-body" id="onboard-body"></p>
+    <p class="onboard-claim" id="onboard-claim" hidden></p>
     <div class="onboard-slot" id="onboard-slot"></div>
     <p class="onboard-status mono" id="onboard-status" role="status"></p>
 
     <div class="onboard-actions">
       <button type="button" class="btn-quiet" id="onboard-skip">Skip setup</button>
-      <button type="button" class="btn" id="onboard-next">Continue</button>
+      <span class="onboard-right">
+        <button type="button" class="btn-quiet" id="onboard-skip-step">Skip this step</button>
+        <button type="button" class="btn" id="onboard-next">Continue</button>
+      </span>
     </div>
   </div>
 </div>

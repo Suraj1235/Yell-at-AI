@@ -562,8 +562,11 @@ async function boot() {
     root,
     store,
     platform,
+    capabilities,
     bindings: BINDINGS,
     recordOnce,
+    engineNow: () => settings.values.engine,
+    onState: (listener) => machine.on(listener),
     onBinding: (binding) => {
       hotkey.setBinding(binding);
       settings.values.hotkey = binding.id;
