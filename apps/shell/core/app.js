@@ -25,7 +25,7 @@ import { createSettings, DEFAULTS } from "./settings.js";
 import { createOnboarding } from "./onboarding.js";
 import { createHotkey, bindPointerHold, BINDINGS, getBinding } from "./hotkey.js";
 import { createLiveReader, rmsOf } from "./live.js";
-import { renderReadout } from "./chips.js";
+import { createEvidence } from "./evidence.js";
 
 const MAX_TURN_SECONDS = 120;
 
@@ -295,42 +295,20 @@ async function boot() {
   });
 
   /* ── rendering a finished turn ──────────────────────────────────────── */
+  const evidence = createEvidence(root);
+
   function renderTurn({ text, contract, block }) {
     el("specimen").hidden = true;
-    el("turn").hidden = false;
-    el("turn-text").textContent = text;
-    renderReadout(el("turn-readout"), contract);
-    el("turn-block").textContent = block;
-
-    const prosody = contract?.prosody || {};
-    const delivery = [
-      ["rate", prosody.rate],
-      ["energy", prosody.energy],
-      ["pitch range", prosody.pitch_range],
-      ["pauses", prosody.pause_density],
-      ["terminal", prosody.terminal_pitch],
-      ["voice", prosody.voice_quality]
-    ];
-    el("turn-delivery").replaceChildren(
-      ...delivery.map(([key, value]) => {
-        const wrap = document.createElement("div");
-        const dt = document.createElement("dt");
-        dt.textContent = key;
-        const dd = document.createElement("dd");
-        dd.textContent = value ?? "—";
-        wrap.append(dt, dd);
-        return wrap;
-      })
-    );
+    evidence.render({ text, contract, blockText: block });
   }
 
   const copyButton = el("copy-block");
   copyButton.addEventListener("click", async () => {
-    const result = await platform.insert(el("turn-block").textContent);
+    const result = await platform.insert(evidence.blockText);
     el("copy-block-label").textContent = result.ok ? "Copied" : "Press Ctrl+C";
     copyButton.classList.toggle("is-done", result.ok);
     window.setTimeout(() => {
-      el("copy-block-label").textContent = "Copy";
+      el("copy-block-label").textContent = "Copy block";
       copyButton.classList.remove("is-done");
     }, 1600);
   });

@@ -10,7 +10,7 @@
 // a version bump drops the old cache wholesale rather than leaving a half-old
 // mix of modules behind.
 
-const VERSION = "yell-shell-v1";
+const VERSION = "yell-shell-v2";
 
 const SHELL = [
   "./",
@@ -26,6 +26,7 @@ const SHELL = [
   "./core/capture-worklet.js",
   "./core/chips.js",
   "./core/engine.js",
+  "./core/evidence.js",
   "./core/history.js",
   "./core/hotkey.js",
   "./core/live.js",

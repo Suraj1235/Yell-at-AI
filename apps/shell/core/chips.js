@@ -27,12 +27,22 @@ export function chipElement({ type, word = null, z = null, conf = null, provisio
     chip.append(target);
   }
 
-  const number = document.createElement("span");
-  number.className = "chip-num";
-  number.textContent = z != null ? `z ${z.toFixed(2)}` : `conf ${Number(conf ?? 0).toFixed(2)}`;
-  chip.append(number);
+  // Both numbers when both exist. The z says how far from your own normal the
+  // measurement landed; the confidence says how much the detector trusts the
+  // call. They answer different questions and a chip that printed only one of
+  // them would be picking which question you get to ask.
+  if (z != null) chip.append(number(`z ${z.toFixed(2)}`));
+  if (conf != null) chip.append(number(`conf ${Number(conf).toFixed(2)}`));
+  if (z == null && conf == null) chip.append(number("conf 0.00"));
 
   return chip;
+}
+
+function number(text) {
+  const node = document.createElement("span");
+  node.className = "chip-num";
+  node.textContent = text;
+  return node;
 }
 
 // The authoritative read: flags out of the contract, with the emphasis chip

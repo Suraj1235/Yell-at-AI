@@ -60,30 +60,39 @@
       and say it the way you mean it. Release to read it back.
     </p>
 
-    <article class="turn" id="turn" hidden aria-labelledby="turn-heading">
-      <h2 class="sr-only" id="turn-heading">Your last turn</h2>
+    <!--
+      The evidence card. Your sentence, with the word you leaned on marked
+      inside it and its z-score sitting on the word; the chips with their
+      numbers; one line of what your assistant is being told; what the reading
+      was measured against; and the raw block one click away.
+    -->
+    <article class="evidence" id="turn" hidden aria-labelledby="turn-heading">
+      <h2 class="sr-only" id="turn-heading">Your last turn, and the evidence beside it</h2>
       <blockquote class="turn-text" id="turn-text"></blockquote>
       <div class="readout" id="turn-readout"></div>
+      <p class="guidance" id="turn-guidance"></p>
       <dl class="delivery" id="turn-delivery"></dl>
+      <dl class="provenance" id="turn-provenance"></dl>
 
-      <div class="block">
-        <div class="block-head">
-          <span class="legend">vocal-context block</span>
-          <button type="button" class="btn-quiet" id="copy-block">
-            <span class="copy-mark" aria-hidden="true"></span><span id="copy-block-label">Copy</span>
-          </button>
-        </div>
-        <pre class="block-pre" id="turn-block"></pre>
+      <div class="evidence-actions">
+        <button type="button" class="btn" id="copy-block">
+          <span class="copy-mark" aria-hidden="true"></span><span id="copy-block-label">Copy block</span>
+        </button>
+        <button type="button" class="btn-quiet" id="toggle-block" aria-expanded="false" aria-controls="turn-block">
+          Show the raw block
+        </button>
       </div>
+      <pre class="block-pre" id="turn-block" hidden></pre>
     </article>
 
     <section class="specimen" id="specimen" aria-labelledby="specimen-caption">
       <p class="specimen-caption" id="specimen-caption">An example of a finished read, so you know the shape of it</p>
-      <blockquote class="turn-text">make the whole thing simpler</blockquote>
+      <blockquote class="turn-text">make the <mark class="stress" style="--z:0.26"><span class="stress-word">whole</span><span class="stress-z">z 1.23</span></mark> thing simpler</blockquote>
       <div class="readout">
-        <span class="chip chip-emphasis"><span class="chip-type">emphasis</span><span class="chip-word">&ldquo;whole&rdquo;</span><span class="chip-num">z 1.23</span></span>
+        <span class="chip chip-emphasis"><span class="chip-type">emphasis</span><span class="chip-word">&ldquo;whole&rdquo;</span><span class="chip-num">z 1.23</span><span class="chip-num">conf 0.62</span></span>
         <span class="chip chip-urgency"><span class="chip-type">urgency</span><span class="chip-num">conf 0.71</span></span>
       </div>
+      <p class="guidance"><span class="guidance-label">your assistant is told</span>Preserve stressed words as likely constraints or priorities: whole.</p>
     </section>
 
     <form class="type-fallback" id="type-fallback" hidden>

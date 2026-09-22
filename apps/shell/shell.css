@@ -266,7 +266,7 @@ body {
   margin: 0;
   font-family: var(--serif);
   font-size: clamp(22px, 5.4vw, 30px);
-  line-height: 1.34;
+  line-height: 1.5;
   letter-spacing: -0.01em;
   color: var(--ink);
   border-left: 2px solid var(--hot-deep);
@@ -274,6 +274,45 @@ body {
 }
 .turn-text::before { content: "\201C"; color: var(--ink-ghost); }
 .turn-text::after { content: "\201D"; color: var(--ink-ghost); }
+
+/* ── the stressed word, marked inside your own sentence ──────────────────
+   The word keeps the serif — it is still your word. The number under it is
+   mono, because the number is ours. --z is the reading, 0 to 1, and it drives
+   the weight of the rule: two marked words in one sentence do not make the
+   same claim and must not look like they do. */
+.stress {
+  position: relative;
+  background: none;
+  color: var(--ink);
+  padding: 0 1px;
+  white-space: nowrap;
+}
+.stress-word {
+  position: relative;
+  color: var(--hot-bright);
+}
+.stress-word::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  bottom: -0.18em;
+  height: calc(2px + 2px * var(--z, 0.5));
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--hot-deep), var(--hot-bright));
+  opacity: calc(0.45 + 0.55 * var(--z, 0.5));
+  transform-origin: left center;
+}
+.is-fresh .stress-word::after { animation: draw-stress 0.42s var(--ease) both; }
+@keyframes draw-stress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.stress-z {
+  font: 500 0.42em/1 var(--mono);
+  color: var(--hot);
+  vertical-align: 0.9em;
+  margin-left: 3px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
 
 .readout { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 
@@ -331,18 +370,56 @@ body {
   color: var(--ink-ghost);
 }
 
-.block { margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
-.block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); }
+/* One line: what your assistant is being told to do about the delivery. */
+.guidance {
+  margin: 18px 0 0;
+  max-width: 62ch;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+.guidance[hidden] { display: none; }
+.guidance-label {
+  display: block;
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cool-deep);
+  margin-bottom: 2px;
+}
+
+/* What the reading rests on. Two rows, terms left, values right: a reading
+   measured against one sentence is not the same claim as one measured against
+   you, and the card has to say which it is. */
+.provenance {
+  margin: 18px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  font: 400 12px/1.5 var(--mono);
+}
+.provenance[hidden] { display: none; }
+.provenance dt { color: var(--ink-ghost); white-space: nowrap; }
+.provenance dd { margin: 0; color: var(--ink-faint); }
+
+.evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
 .block-pre {
-  margin: 0;
+  margin: 14px 0 0;
   padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
   font: 400 12.5px/1.65 var(--mono);
   color: var(--ink-dim);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 260px;
+  max-height: 300px;
   overflow: auto;
 }
+.block-pre[hidden] { display: none; }
 
 .specimen {
   margin-top: 4px;
