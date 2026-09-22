@@ -1,472 +1,236 @@
-// Subtext Desktop - native Windows push-to-talk dev build.
+// Subtext Desktop - the native shell for Yell-at-AI.
 //
-// This is a working developer build, not a signed/installable product. A
-// global hotkey (default Ctrl+Alt+Y) drives one bounded natural-speech turn by
-// invoking the existing Node reference CLI as a child-process sidecar:
+// The product loop is Wispr-Flow shaped: hold `Ctrl+Alt+Y`, a small overlay pill
+// appears near the cursor, you speak, you release, and your words land in
+// whatever app has focus with the `vocalcontext/v1` evidence block attached.
 //
-//   node <repo>/bin/subtext.js ptt --turns 1 --duration 4 \
-//     --trigger none --transcript-command "..." --target paste
+// This crate owns only the native surface:
 //
-// The CLI records audio, bridges a transcript, runs prosody analysis, renders
-// the enriched <vocal-context> prompt, and pastes it into the active app via
-// the existing src/handoff/paste.js path. The desktop app owns only the hotkey,
-// the sidecar invocation, and the visible listening/delivered/failed status.
+//   * the press-and-hold global hotkey (both edges, plus Esc to cancel),
+//   * the frameless always-on-top overlay pill,
+//   * the tray, autostart, and status,
+//   * timeout-bounded child-process calls into the Node reference CLI,
+//   * local-only turn history.
+//
+// Recording, transcription, prosody analysis, and prompt rendering all stay in
+// the zero-dependency Node core, invoked as a child process. Bundling Node as a
+// true Tauri `externalBin` is a later task.
+//
+// The window / command / event contract this exposes is documented in
+// apps/desktop/CONTRACT.md, so the shared shell in `apps/shell/` can replace
+// `apps/desktop/src/` by pointing `frontendDist` at it.
 
-use std::{
-    fs,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+mod commands;
+mod config;
+mod history;
+mod hotkey;
+mod pill;
+mod sidecar;
+mod status;
+mod turn;
 
-use serde::{Deserialize, Serialize};
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{TrayIcon, TrayIconBuilder},
-    AppHandle, Emitter, Manager,
-};
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-use tauri_plugin_shell::ShellExt;
+use std::sync::Arc;
 
-const DEFAULT_TRANSCRIPT_COMMAND: &str = "host-transcript --json {audio}";
-const DEFAULT_CONFIG_PATH: &str = "apps/desktop/subtext-desktop.generated.json";
-const DEFAULT_ACCELERATOR: &str = "Ctrl+Alt+Y";
-const STATUS_EVENT: &str = "subtext://status";
+use tauri::{AppHandle, Manager};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SessionRequest {
-    node_command: Option<String>,
-    cli_path: Option<String>,
-    transcript_command: Option<String>,
-    duration: Option<String>,
-    target: Option<String>,
-    verbosity: Option<String>,
-}
+use crate::history::History;
+use crate::status::{set_status, PttStatus, StatusState};
 
-#[derive(Debug, Serialize)]
-struct SessionResult {
-    ok: bool,
-    stdout: String,
-    stderr: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LoadConfigRequest {
-    path: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct DesktopConfig {
-    schema: Option<String>,
-    node_command: Option<String>,
-    subtext_cli_path: Option<String>,
-    transcript_command: Option<String>,
-    duration: Option<serde_json::Value>,
-    target: Option<String>,
-    verbosity: Option<String>,
-    hotkey: Option<HotkeyConfig>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct HotkeyConfig {
-    enabled: Option<bool>,
-    accelerator: Option<String>,
-    mode: Option<String>,
-}
-
-/// Status of a push-to-talk turn, surfaced to the tray, window title, and UI.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PttStatus {
-    Ready,
-    Listening,
-    Delivered,
-    Failed,
-}
-
-impl PttStatus {
-    fn label(self) -> &'static str {
-        match self {
-            PttStatus::Ready => "Ready",
-            PttStatus::Listening => "Listening",
-            PttStatus::Delivered => "Delivered",
-            PttStatus::Failed => "Failed",
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct StatusPayload {
-    status: String,
-    detail: String,
-}
-
-/// Shared runtime state. The busy flag prevents overlapping captures when the
-/// hotkey is pressed again while a turn is still running; the tray handle (when
-/// present) lets us update the tooltip as status changes.
-struct PttState {
-    busy: AtomicBool,
-    accelerator: String,
-    tray: std::sync::Mutex<Option<TrayIcon>>,
-}
-
-impl PttState {
-    fn new(accelerator: String) -> Self {
-        Self {
-            busy: AtomicBool::new(false),
-            accelerator,
-            tray: std::sync::Mutex::new(None),
-        }
-    }
-}
-
-fn read_desktop_config(path_override: Option<String>) -> Result<DesktopConfig, String> {
-    let path = path_override
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| std::env::var("SUBTEXT_DESKTOP_CONFIG").ok())
-        .unwrap_or_else(|| DEFAULT_CONFIG_PATH.to_string());
-    let text = fs::read_to_string(&path)
-        .map_err(|error| format!("Failed to read desktop config {path}: {error}"))?;
-    let config: DesktopConfig = serde_json::from_str(&text)
-        .map_err(|error| format!("Failed to parse desktop config {path}: {error}"))?;
-    if config.schema.as_deref() != Some("subtext/desktop-config/v1") {
-        return Err("Desktop config must use schema subtext/desktop-config/v1.".to_string());
-    }
-    Ok(config)
-}
-
-#[tauri::command]
-fn subtext_load_config(request: LoadConfigRequest) -> Result<DesktopConfig, String> {
-    read_desktop_config(request.path)
-}
-
-#[tauri::command]
-fn subtext_session(request: SessionRequest) -> Result<SessionResult, String> {
-    let node = request
-        .node_command
-        .or_else(|| std::env::var("SUBTEXT_NODE").ok())
-        .unwrap_or_else(|| "node".to_string());
-    let cli_path = request
-        .cli_path
-        .or_else(|| std::env::var("SUBTEXT_CLI_PATH").ok())
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| "Missing Subtext CLI path.".to_string())?;
-    let transcript_command = request
-        .transcript_command
-        .or_else(|| std::env::var("SUBTEXT_TRANSCRIPT_COMMAND").ok())
-        .unwrap_or_else(|| DEFAULT_TRANSCRIPT_COMMAND.to_string());
-    let duration = request.duration.unwrap_or_else(|| "4".to_string());
-    let target = normalize_target(request.target.unwrap_or_else(|| "clipboard".to_string()))?;
-    let verbosity = request.verbosity.unwrap_or_else(|| "full".to_string());
-
-    let output = std::process::Command::new(node)
-        .arg(cli_path)
-        .arg("session")
-        .arg("--duration")
-        .arg(duration)
-        .arg("--transcript-command")
-        .arg(transcript_command)
-        .arg("--target")
-        .arg(target)
-        .arg("--verbosity")
-        .arg(verbosity)
-        .output()
-        .map_err(|error| format!("Failed to launch Subtext: {error}"))?;
-
-    Ok(SessionResult {
-        ok: output.status.success(),
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-    })
-}
-
-/// Resolve the push-to-talk invocation parameters, layering env vars and the
-/// generated desktop config over built-in defaults. Mirrors `subtext_session`'s
-/// resolution so the hotkey and the manual button behave the same way.
-struct PttInvocation {
-    node: String,
-    cli_path: String,
-    transcript_command: String,
-    duration: String,
-    verbosity: String,
-}
-
-fn resolve_ptt_invocation() -> Result<PttInvocation, String> {
-    let config = read_desktop_config(None).ok();
-
-    let node = std::env::var("SUBTEXT_NODE")
-        .ok()
-        .or_else(|| config.as_ref().and_then(|c| c.node_command.clone()))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "node".to_string());
-
-    let cli_path = std::env::var("SUBTEXT_CLI_PATH")
-        .ok()
-        .or_else(|| config.as_ref().and_then(|c| c.subtext_cli_path.clone()))
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| {
-            "Missing Subtext CLI path. Set SUBTEXT_CLI_PATH or subtextCliPath in the desktop config."
-                .to_string()
-        })?;
-
-    let transcript_command = std::env::var("SUBTEXT_TRANSCRIPT_COMMAND")
-        .ok()
-        .or_else(|| config.as_ref().and_then(|c| c.transcript_command.clone()))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_TRANSCRIPT_COMMAND.to_string());
-
-    let duration = config
-        .as_ref()
-        .and_then(|c| c.duration.as_ref())
-        .map(json_value_to_string)
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "4".to_string());
-
-    let verbosity = config
-        .as_ref()
-        .and_then(|c| c.verbosity.clone())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "full".to_string());
-
-    Ok(PttInvocation {
-        node,
-        cli_path,
-        transcript_command,
-        duration,
-        verbosity,
-    })
-}
-
-fn json_value_to_string(value: &serde_json::Value) -> String {
-    match value {
-        serde_json::Value::String(text) => text.clone(),
-        other => other.to_string(),
-    }
-}
-
-/// Update the tray tooltip, window title, and emit a status event to the UI.
-fn set_status(app: &AppHandle, status: PttStatus, detail: &str) {
-    let state = app.state::<Arc<PttState>>();
-    let tooltip = format!(
-        "Subtext Desktop - {} (press {})",
-        status.label(),
-        state.accelerator
-    );
-
-    if let Ok(guard) = state.tray.lock() {
-        if let Some(tray) = guard.as_ref() {
-            let _ = tray.set_tooltip(Some(tooltip.as_str()));
-        }
-    }
-
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_title(&format!("Subtext Desktop - {}", status.label()));
-    }
-
-    let _ = app.emit(
-        STATUS_EVENT,
-        StatusPayload {
-            status: status.label().to_string(),
-            detail: detail.to_string(),
-        },
-    );
-}
-
-/// Fire one bounded push-to-talk turn through the Node sidecar. Guards against
-/// overlapping runs and reports terminal status back to the UI/tray.
-fn trigger_ptt(app: &AppHandle) {
-    let state = app.state::<Arc<PttState>>().inner().clone();
-
-    // Reject re-entry while a turn is already running.
-    if state
-        .busy
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
-        set_status(app, PttStatus::Listening, "A capture is already in progress.");
-        return;
-    }
-
-    let invocation = match resolve_ptt_invocation() {
-        Ok(invocation) => invocation,
-        Err(error) => {
-            state.busy.store(false, Ordering::SeqCst);
-            set_status(app, PttStatus::Failed, &error);
-            return;
-        }
-    };
-
-    set_status(app, PttStatus::Listening, "Recording a bounded turn...");
-
-    let app_handle = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let shell = app_handle.shell();
-        let result = shell
-            .command(&invocation.node)
-            .args([
-                invocation.cli_path.as_str(),
-                "ptt",
-                "--turns",
-                "1",
-                "--duration",
-                invocation.duration.as_str(),
-                "--trigger",
-                "none",
-                "--transcript-command",
-                invocation.transcript_command.as_str(),
-                "--target",
-                "paste",
-                "--verbosity",
-                invocation.verbosity.as_str(),
-            ])
-            .output()
-            .await;
-
-        match result {
-            Ok(output) if output.status.success() => {
-                set_status(
-                    &app_handle,
-                    PttStatus::Delivered,
-                    "Enriched prompt pasted into the active app.",
-                );
-            }
-            Ok(output) => {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let detail = first_nonempty_line(&stderr)
-                    .unwrap_or_else(|| "Subtext sidecar exited with a non-zero status.".to_string());
-                set_status(&app_handle, PttStatus::Failed, &detail);
-            }
-            Err(error) => {
-                set_status(
-                    &app_handle,
-                    PttStatus::Failed,
-                    &format!("Failed to launch Subtext sidecar: {error}"),
-                );
-            }
-        }
-
-        state.busy.store(false, Ordering::SeqCst);
-    });
-}
-
-fn first_nonempty_line(text: &str) -> Option<String> {
-    text.lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(|line| line.to_string())
-}
-
-/// Parse the configured accelerator, falling back to the built-in default if
-/// the string is missing or unparseable.
-fn resolve_shortcut() -> (Shortcut, String) {
-    let configured = read_desktop_config(None)
-        .ok()
-        .and_then(|config| config.hotkey)
-        .and_then(|hotkey| hotkey.accelerator)
-        .filter(|value| !value.trim().is_empty());
-
-    if let Some(accelerator) = configured {
-        if let Ok(shortcut) = accelerator.parse::<Shortcut>() {
-            return (shortcut, accelerator);
-        }
-        eprintln!(
-            "subtext-desktop: could not parse accelerator '{accelerator}', falling back to {DEFAULT_ACCELERATOR}."
-        );
-    }
-
-    (
-        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyY),
-        DEFAULT_ACCELERATOR.to_string(),
-    )
-}
-
-fn build_tray(app: &AppHandle) -> Option<TrayIcon> {
-    // In a dev build without a bundled icon there may be no default icon; skip
-    // the tray gracefully rather than panicking, and rely on the window title.
-    let icon = app.default_window_icon()?.clone();
-
-    let show_item = MenuItem::with_id(app, "show", "Show window", true, None::<&str>).ok()?;
-    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).ok()?;
-    let menu = Menu::with_items(app, &[&show_item, &quit_item]).ok()?;
-
-    TrayIconBuilder::with_id("subtext-tray")
-        .icon(icon)
-        .tooltip("Subtext Desktop - Ready (press Ctrl+Alt+Y)")
-        .menu(&menu)
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            "quit" => app.exit(0),
-            _ => {}
-        })
-        .build(app)
-        .ok()
-}
+#[cfg(desktop)]
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+#[cfg(desktop)]
+use tauri::tray::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 /// Library entrypoint. `src/main.rs` calls this, and so do the generated
 /// `tauri android init` / `tauri ios init` mobile entrypoints.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let (shortcut, accelerator) = resolve_shortcut();
-    let state = Arc::new(PttState::new(accelerator));
-    let handler_shortcut = shortcut;
+    let (shortcut, accelerator) = hotkey::resolve_shortcut();
 
     tauri::Builder::default()
-        .manage(state)
+        .manage(Arc::new(StatusState::new(accelerator.clone())))
+        .manage(Arc::new(hotkey::HotkeyRuntime::new(
+            accelerator,
+            Some(shortcut),
+        )))
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(move |app, triggered, event| {
-                    if triggered == &handler_shortcut && event.state() == ShortcutState::Pressed {
-                        trigger_ptt(app);
-                    }
+                .with_handler(|app, triggered, event| {
+                    hotkey::handle(app, triggered, event.state())
                 })
                 .build(),
         )
         .setup(move |app| {
             let handle = app.handle().clone();
 
-            if let Some(tray) = build_tray(&handle) {
-                let state = handle.state::<Arc<PttState>>();
-                if let Ok(mut guard) = state.tray.lock() {
-                    *guard = Some(tray);
+            // History lives in the OS app-data directory and never leaves it.
+            let history_path = handle
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                .join("history.json");
+            handle.manage(History::new(history_path));
+
+            pill::configure(&handle);
+
+            #[cfg(desktop)]
+            {
+                let state = handle.state::<Arc<StatusState>>().inner().clone();
+                if let Some(tray) = build_tray(&handle) {
+                    if let Ok(mut guard) = state.tray.lock() {
+                        *guard = Some(tray);
+                    }
                 }
             }
 
-            // Register the push-to-talk accelerator. A failure here (for
-            // example, the shortcut is already claimed by another app) should
-            // be surfaced, not silently swallowed.
-            if let Err(error) = handle.global_shortcut().register(shortcut) {
-                eprintln!("subtext-desktop: failed to register global shortcut: {error}");
-                set_status(
-                    &handle,
-                    PttStatus::Failed,
-                    &format!("Could not register the global hotkey: {error}"),
-                );
-            } else {
-                set_status(&handle, PttStatus::Ready, "Idle. Press the hotkey to capture.");
-            }
+            register_capture_hotkey(&handle, shortcut);
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![subtext_load_config, subtext_session])
+        .invoke_handler(tauri::generate_handler![
+            commands::subtext_load_config,
+            commands::subtext_session,
+            commands::subtext_stage_audio,
+            commands::subtext_discard_audio,
+            commands::subtext_analyze,
+            commands::subtext_render,
+            commands::subtext_transcribe,
+            commands::subtext_insert,
+            commands::subtext_history_list,
+            commands::subtext_history_append,
+            commands::subtext_history_delete,
+            commands::subtext_history_clear,
+            commands::subtext_history_path,
+            commands::subtext_pill_show,
+            commands::subtext_pill_hide,
+            commands::subtext_pill_position,
+            commands::subtext_status_set,
+            commands::subtext_hotkey_status,
+            commands::subtext_hotkey_set,
+            commands::subtext_hotkey_claim,
+            commands::subtext_autostart_status,
+            commands::subtext_autostart_set,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Subtext desktop");
 }
 
-fn normalize_target(value: String) -> Result<String, String> {
-    let normalized = value.trim().to_lowercase();
-    match normalized.as_str() {
-        "stdout" | "clipboard" | "paste" => Ok(normalized),
-        _ => Err("Desktop scaffold target must be stdout, clipboard, or paste.".to_string()),
+/// Register the capture accelerator. A shortcut the OS refuses - already owned
+/// by another app, reserved by the shell - is surfaced in the status banner and
+/// the tray, never swallowed.
+fn register_capture_hotkey(app: &AppHandle, shortcut: tauri_plugin_global_shortcut::Shortcut) {
+    match app.global_shortcut().register(shortcut) {
+        Ok(()) => set_status(
+            app,
+            PttStatus::Ready,
+            "Idle. Hold the hotkey to dictate, tap it to toggle, press Esc to cancel.",
+        ),
+        Err(error) => {
+            eprintln!("subtext-desktop: failed to register global shortcut: {error}");
+            set_status(
+                app,
+                PttStatus::Failed,
+                &format!(
+                    "The system refused the hotkey {}: {error}. Pick another one in settings.",
+                    app.state::<Arc<StatusState>>().accelerator()
+                ),
+            );
+        }
     }
+}
+
+#[cfg(desktop)]
+fn build_tray(app: &AppHandle) -> Option<TrayIcon> {
+    let icon = app.default_window_icon()?.clone();
+
+    // A disabled first item is the status readout; the rest are actions.
+    let status_item =
+        MenuItem::with_id(app, "status", "Status: Ready", false, None::<&str>).ok()?;
+    let show_item = MenuItem::with_id(app, "show", "Open Subtext", true, None::<&str>).ok()?;
+    let history_item =
+        MenuItem::with_id(app, "history", "Open history folder", true, None::<&str>).ok()?;
+    let top_separator = PredefinedMenuItem::separator(app).ok()?;
+    let bottom_separator = PredefinedMenuItem::separator(app).ok()?;
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).ok()?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &status_item,
+            &top_separator,
+            &show_item,
+            &history_item,
+            &bottom_separator,
+            &quit_item,
+        ],
+    )
+    .ok()?;
+
+    if let Ok(mut guard) = app.state::<Arc<StatusState>>().tray_status_item.lock() {
+        *guard = Some(status_item);
+    }
+
+    TrayIconBuilder::with_id("subtext-tray")
+        .icon(icon)
+        .tooltip("Subtext Desktop - Ready")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => show_main_window(app),
+            "history" => reveal_history(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::DoubleClick { .. } = event {
+                show_main_window(tray.app_handle());
+            }
+        })
+        .build(app)
+        .ok()
+}
+
+#[cfg(desktop)]
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+/// Open the folder that holds the local history file. Nothing here is uploaded;
+/// the point of the menu item is that the user can see that for themselves.
+#[cfg(desktop)]
+fn reveal_history(app: &AppHandle) {
+    let Ok(path) = app.state::<History>().location() else {
+        return;
+    };
+    let Some(folder) = path.parent().map(|parent| parent.to_path_buf()) else {
+        return;
+    };
+    let _ = std::fs::create_dir_all(&folder);
+
+    #[cfg(target_os = "windows")]
+    let opener: (&str, Vec<String>) = ("explorer", vec![folder.display().to_string()]);
+    #[cfg(target_os = "macos")]
+    let opener: (&str, Vec<String>) = ("open", vec![folder.display().to_string()]);
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let opener: (&str, Vec<String>) = ("xdg-open", vec![folder.display().to_string()]);
+    #[cfg(not(any(windows, unix)))]
+    let opener: (&str, Vec<String>) = ("", Vec::new());
+
+    if opener.0.is_empty() {
+        return;
+    }
+
+    tauri::async_runtime::spawn(async move {
+        let _ = sidecar::run(opener.0, &opener.1, None, 10_000).await;
+    });
 }
