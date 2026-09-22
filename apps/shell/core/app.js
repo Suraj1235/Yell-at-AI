@@ -29,7 +29,27 @@ import { createToast } from "./toast.js";
 import { createLiveReader, rmsOf } from "./live.js";
 import { createEvidence } from "./evidence.js";
 
+/* ── when a turn stops by itself ───────────────────────────────────────────
+   Three limits, and one rule that governs all of them: an automatic stop ends
+   the recording, it never discards it. Whatever was captured is analysed and
+   delivered exactly as if you had let go of the key yourself. A dictation app
+   that threw away two minutes of speech because it hit its own ceiling would
+   be teaching you not to trust it.
+
+   MAX_TURN_SECONDS is 120 because the capture adapter stops storing samples at
+   120 seconds. Past that point the recording would keep running while the
+   audio quietly stopped being kept — the worst possible failure for this
+   product. The cap and the adapter's ceiling are deliberately the same number.
+
+   The two silence limits only apply in hands-free. Holding the key down is a
+   continuous statement of intent, and cutting someone off mid-thought because
+   they paused for three seconds while holding it would be a bug. */
 const MAX_TURN_SECONDS = 120;
+const WARN_BEFORE_SEC = 15;
+const QUIET_STOP_SEC = 3;
+const NO_AUDIO_STOP_SEC = 8;
+const QUIET_RMS = 0.006;
+const WATCH_MS = 250;
 
 const el = (id) => document.getElementById(id);
 
@@ -131,6 +151,9 @@ async function boot() {
   let recogniser = null;
   let lastTake = null;
   let stopAt = 0;
+  let startedAt = 0;
+  let spoke = false;
+  let quietSince = 0;
 
   async function startTurn() {
     if (machine.state === "listening" || machine.state === "thinking") return;
@@ -150,11 +173,20 @@ async function boot() {
     // the permission round-trip.
     ping.play();
 
+    startedAt = performance.now();
+    spoke = false;
+    quietSince = startedAt;
+
     try {
       capture = await platform.capture({
         deviceId: settings.values.mic || undefined,
         onSamples: (frame, sampleRate) => {
-          pill.pushAmplitude(rmsOf(frame));
+          const level = rmsOf(frame);
+          pill.pushAmplitude(level);
+          if (level >= QUIET_RMS) {
+            spoke = true;
+            quietSince = performance.now();
+          }
           if (settings.values.live === "on") live.push(frame, sampleRate);
         }
       });
@@ -169,14 +201,74 @@ async function boot() {
       onPartial: () => {}
     });
 
-    stopAt = window.setTimeout(() => {
-      if (machine.state === "listening") finishTurn();
-    }, MAX_TURN_SECONDS * 1000);
+    stopAt = window.setInterval(watch, WATCH_MS);
+  }
+
+  // The watchdog. Runs only while listening, and every exit it takes goes
+  // through finishTurn, which is the one path that analyses and delivers.
+  function watch() {
+    if (machine.state !== "listening") {
+      window.clearInterval(stopAt);
+      return;
+    }
+    const now = performance.now();
+    const elapsed = (now - startedAt) / 1000;
+
+    if (elapsed >= MAX_TURN_SECONDS) {
+      autoStop("cap");
+      return;
+    }
+    if (elapsed >= MAX_TURN_SECONDS - WARN_BEFORE_SEC) {
+      const left = Math.max(1, Math.ceil(MAX_TURN_SECONDS - elapsed));
+      pill.setWarning(`Stopping in ${left}s — the words still land.`);
+    }
+
+    if (!hotkey.latched) return; // a held key is intent; do not second-guess it
+    if (spoke && (now - quietSince) / 1000 >= QUIET_STOP_SEC) {
+      autoStop("quiet");
+      return;
+    }
+    if (!spoke && elapsed >= NO_AUDIO_STOP_SEC) autoStop("no-audio");
+  }
+
+  async function autoStop(reason) {
+    window.clearInterval(stopAt);
+    pill.setWarning(null);
+    await finishTurn();
+
+    // Nothing above the noise floor arrived, so there is no delivery to read
+    // and no point offering to align words to it.
+    if (reason === "no-audio") {
+      fallbackForm.hidden = true;
+      lastTake = null;
+      toast.show({
+        message:
+          `Stopped — nothing above the noise floor reached the microphone for ${NO_AUDIO_STOP_SEC} seconds, ` +
+          "so there was nothing to read.",
+        actions: [{ label: "Check the microphone", run: () => show("settings") }]
+      });
+      return;
+    }
+
+    // Say what actually became of the recording, rather than a reassurance
+    // that might not be true of this particular stop.
+    const landed = machine.state === "inserted";
+    const tail = landed
+      ? "The audio was read and the words are in your history."
+      : fallbackForm.hidden
+        ? "Nothing was discarded."
+        : "The audio was still read — type the words and it finishes.";
+
+    toast.show({
+      message: `${reason === "cap" ? `Stopped at the ${MAX_TURN_SECONDS}-second limit.` : `Stopped after ${QUIET_STOP_SEC} seconds of quiet.`} ${tail}`,
+      actions: landed ? [{ label: "Open history", run: () => show("history") }] : []
+    });
   }
 
   async function finishTurn() {
     if (machine.state !== "listening" || !capture) return;
-    window.clearTimeout(stopAt);
+    window.clearInterval(stopAt);
+    pill.setWarning(null);
     // However the turn ends — key, pill, auto-stop — hands-free ends with it,
     // or the key and the pill would disagree about whether one is running.
     hotkey.clearLatch();
@@ -212,7 +304,7 @@ async function boot() {
   let cancelled = null;
 
   function cancelTurn() {
-    window.clearTimeout(stopAt);
+    window.clearInterval(stopAt);
     const capturing = capture;
     const hearing = recogniser;
     capture = null;
