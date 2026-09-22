@@ -51,14 +51,37 @@ export const BUNDLE_FILES = Object.freeze({
     "adapters/hotkey/README.md",
     "adapters/hotkey/hammerspoon-subtext.lua"
   ],
+  // Everything `cargo check` needs to pass inside the copied bundle. The crate
+  // is a library plus a thin binary, so every module must ship; tauri-build
+  // additionally reads tauri.conf.json's icon list and the capabilities dir at
+  // build time, so those must be present too or the bundle fails to compile.
   "native-desktop": [
     "apps/desktop/README.md",
+    "apps/desktop/CONTRACT.md",
     "apps/desktop/package.json",
     "apps/desktop/src/index.html",
+    "apps/desktop/src/pill.html",
     "apps/desktop/src-tauri/Cargo.toml",
+    "apps/desktop/src-tauri/Cargo.lock",
     "apps/desktop/src-tauri/build.rs",
     "apps/desktop/src-tauri/tauri.conf.json",
+    "apps/desktop/src-tauri/capabilities/default.json",
+    "apps/desktop/src-tauri/icons/32x32.png",
+    "apps/desktop/src-tauri/icons/128x128.png",
+    "apps/desktop/src-tauri/icons/128x128@2x.png",
+    "apps/desktop/src-tauri/icons/icon.icns",
+    "apps/desktop/src-tauri/icons/icon.ico",
+    "apps/desktop/src-tauri/icons/icon.png",
     "apps/desktop/src-tauri/src/main.rs",
+    "apps/desktop/src-tauri/src/lib.rs",
+    "apps/desktop/src-tauri/src/commands.rs",
+    "apps/desktop/src-tauri/src/config.rs",
+    "apps/desktop/src-tauri/src/history.rs",
+    "apps/desktop/src-tauri/src/hotkey.rs",
+    "apps/desktop/src-tauri/src/pill.rs",
+    "apps/desktop/src-tauri/src/sidecar.rs",
+    "apps/desktop/src-tauri/src/status.rs",
+    "apps/desktop/src-tauri/src/turn.rs",
     "docs/NATIVE_DESKTOP.md"
   ],
   universal: [
