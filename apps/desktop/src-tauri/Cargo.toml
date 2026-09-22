@@ -1,11 +1,14 @@
 [package]
 name = "subtext-desktop"
 version = "0.1.0"
-description = "Subtext desktop scaffold"
+description = "Subtext desktop shell"
 authors = ["Suraj Kuncham", "Manish Sampathirao"]
 license = "LicenseRef-Subtext-NonCommercial"
 edition = "2021"
 
+# The library target is what `tauri android init` / `tauri ios init` link against:
+# the generated mobile entrypoints call `subtext_desktop::run()`. `src/main.rs` is
+# a thin desktop binary that calls the same function.
 [lib]
 name = "subtext_desktop"
 crate-type = ["staticlib", "cdylib", "rlib"]
@@ -16,6 +19,23 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = ["tray-icon"] }
+# `macos-private-api` is what lets the overlay pill be transparent on macOS. It
+# is inert on Windows and Linux, but tauri-build checks the feature list against
+# `app.macOSPrivateApi` on every target, so it is declared unconditionally.
+# Trade-off: an app built with it is not eligible for the Mac App Store, which
+# the launch plan already puts out of scope.
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-shell = "2"
+# Every sidecar call is timeout-bounded, so we drive child processes through
+# tokio (which Tauri's async runtime already is) rather than std::process.
+tokio = { version = "1", features = ["io-util", "process", "rt", "time"] }
+
+# Note for the mobile follow-up: `tauri-plugin-global-shortcut` and
+# `tauri-plugin-autostart` are desktop-only. When `tauri android init` /
+# `tauri ios init` land, move those two under
+# `[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]`
+# and gate `mod hotkey` / `mod turn` behind `#[cfg(desktop)]`. Everything they
+# need for that - a real `[lib]` target with `pub fn run()` - is already here.
