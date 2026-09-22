@@ -1,0 +1,19 @@
+{
+  "name": "Yell@AI — dictation that carries how you said it",
+  "short_name": "Yell@AI",
+  "id": "/apps/shell/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0b0d",
+  "theme_color": "#0a0b0d",
+  "description": "Hold a key, say it the way you mean it. Yell@AI hands your assistant the transcript plus auditable evidence of your delivery: which word you leaned on, and by how much.",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "./icons/mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

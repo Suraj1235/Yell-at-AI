@@ -1,0 +1,732 @@
+/* =========================================================================
+   Yell@AI — the product shell.
+
+   Design language inherited from apps/web/style.css: dark instrument panel,
+   film grain, one hot accent (amber, the "yell") and one cool signal (teal,
+   "understood"). The token block below is a deliberate copy of that sheet's
+   tokens rather than an import, because this shell also has to boot inside a
+   frameless Tauri overlay that never loads the landing page.
+
+   Two rules are specific to the shell, and they carry meaning:
+     1. The serif sets YOUR WORDS. The mono sets everything the machine
+        measured. Nothing else uses the serif.
+     2. On the waveform, hue is not decoration and not age — it is the
+        emphasis reading. Cool bars are unremarkable, hot bars are where you
+        leaned on a word.
+   ========================================================================= */
+
+:root {
+  --bg: #0a0b0d;
+  --bg-raised: #111317;
+  --panel: #14171c;
+  --panel-2: #181c22;
+  --line: #23272f;
+  --line-soft: #1a1d23;
+
+  --ink: #eef0f3;
+  --ink-dim: #aeb4bf;
+  --ink-faint: #6c7480;
+  --ink-ghost: #444b56;
+
+  --hot: #ff7a18;
+  --hot-bright: #ffa24c;
+  --hot-deep: #c2410c;
+
+  --cool: #36d6c3;
+  --cool-bright: #7af0e2;
+  --cool-deep: #0e8a7d;
+
+  --flag-amber: #ffb347;
+  --flag-red: #ff5d5d;
+  --flag-violet: #b08cff;
+  --flag-blue: #6aa8ff;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+
+  --serif: "Iowan Old Style", "Hoefler Text", "Palatino Linotype", "Palatino", "URW Palladio L", Georgia, serif;
+  --sans: ui-sans-serif, "Segoe UI", "Helvetica Neue", "Avenir Next", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", "Roboto Mono", "Menlo", "Consolas", monospace;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --gutter: 16px;
+  --maxw: 760px;
+
+  /* Pill geometry. Nothing outside .pill-layer reads these, so the Tauri
+     overlay can override them for a 180x48 frameless window. */
+  --pill-w: clamp(280px, 86vw, 380px);
+  --pill-h: 48px;
+  --pill-gap: 18px;
+}
+
+@media (min-width: 720px) {
+  :root { --gutter: 32px; }
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background:
+    radial-gradient(120% 70% at 88% -10%, rgba(255, 122, 24, 0.10), transparent 58%),
+    radial-gradient(90% 60% at -12% 8%, rgba(54, 214, 195, 0.06), transparent 52%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  /* Room for the pill, which is fixed over the bottom edge. */
+  padding-bottom: calc(var(--pill-h) + 108px + env(safe-area-inset-bottom));
+}
+
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px; top: 0;
+  z-index: 100;
+  background: var(--hot);
+  color: #1a0c02;
+  padding: 10px 16px;
+  font: 600 14px var(--sans);
+  text-decoration: none;
+  border-radius: 0 0 var(--radius-sm) 0;
+}
+.skip-link:focus { left: 0; }
+
+::selection { background: var(--hot); color: #160a02; }
+
+:focus-visible {
+  outline: 2px solid var(--cool-bright);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ───────────────────────── Header ───────────────────────── */
+.app-head {
+  position: relative;
+  z-index: 2;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 18px var(--gutter) 14px;
+  padding-top: calc(18px + env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wordmark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.wordmark-glyph { display: inline-flex; align-items: flex-end; gap: 2px; height: 20px; }
+.wordmark-glyph i {
+  display: block;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--hot);
+  animation: eq 1.4s var(--ease) infinite;
+}
+.wordmark-glyph i:nth-child(1) { height: 40%; animation-delay: 0s; }
+.wordmark-glyph i:nth-child(2) { height: 80%; animation-delay: 0.12s; background: var(--hot-bright); }
+.wordmark-glyph i:nth-child(3) { height: 55%; animation-delay: 0.24s; }
+.wordmark-glyph i:nth-child(4) { height: 100%; animation-delay: 0.36s; background: var(--cool); }
+.wordmark-glyph i:nth-child(5) { height: 60%; animation-delay: 0.48s; }
+.wordmark-glyph i:nth-child(6) { height: 85%; animation-delay: 0.6s; background: var(--hot-bright); }
+.wordmark-glyph i:nth-child(7) { height: 45%; animation-delay: 0.72s; }
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.55); opacity: 0.75; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+.wordmark-text { font: 700 20px/1 var(--sans); letter-spacing: -0.02em; }
+.wordmark-at { color: var(--hot); font-style: normal; padding: 0 1px; }
+
+.app-nav { display: flex; gap: 2px; }
+.nav-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-faint);
+  font: 500 14px var(--sans);
+  padding: 6px 10px 5px;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.nav-tab:hover { color: var(--ink-dim); }
+.nav-tab[aria-current="page"] { color: var(--ink); border-bottom-color: var(--hot); }
+
+/* ───────────────────────── Engine badge ─────────────────────────
+   Adapted from apps/web/style.css so the two surfaces state the same
+   thing the same way. Persistent, never hidden. */
+.engine-badge {
+  position: relative;
+  z-index: 2;
+  max-width: var(--maxw);
+  margin: 0 auto 26px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+@media (min-width: 792px) { .engine-badge { margin-left: auto; margin-right: auto; } }
+@media (max-width: 791px) { .engine-badge { margin-left: var(--gutter); margin-right: var(--gutter); } }
+
+.engine-badge-mark {
+  flex: none;
+  width: 9px; height: 9px;
+  margin-top: 6px;
+  border-radius: 50%;
+}
+.engine-badge-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.engine-badge-title { font: 600 13px var(--sans); letter-spacing: 0.005em; }
+.engine-badge-detail { font-size: 12.5px; line-height: 1.5; color: var(--ink-faint); }
+
+.engine-badge[data-egress="vendor"] { border-left-color: var(--hot); }
+.engine-badge[data-egress="vendor"] .engine-badge-mark { background: var(--hot); box-shadow: 0 0 10px rgba(255, 122, 24, 0.7); }
+.engine-badge[data-egress="vendor"] .engine-badge-title { color: var(--hot-bright); }
+
+.engine-badge[data-egress="none"] { border-left-color: var(--cool-deep); }
+.engine-badge[data-egress="none"] .engine-badge-mark { background: var(--cool); box-shadow: 0 0 10px rgba(54, 214, 195, 0.6); }
+.engine-badge[data-egress="none"] .engine-badge-title { color: var(--cool-bright); }
+
+.engine-badge[data-egress="blocked"] { border-left-color: var(--flag-amber); }
+.engine-badge[data-egress="blocked"] .engine-badge-mark { background: var(--flag-amber); box-shadow: 0 0 10px rgba(255, 179, 71, 0.6); }
+.engine-badge[data-egress="blocked"] .engine-badge-title { color: var(--flag-amber); }
+
+/* ───────────────────────── Views ───────────────────────── */
+.app-main {
+  position: relative;
+  z-index: 2;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+.view[hidden] { display: none; }
+
+.view-head { margin-bottom: 20px; display: grid; gap: 4px; }
+.view-head h2 { margin: 0; font: 600 22px/1.2 var(--sans); letter-spacing: -0.015em; }
+.view-sub { margin: 0; color: var(--ink-faint); font-size: 13.5px; }
+.view-head .btn-quiet { justify-self: start; margin-top: 8px; }
+
+/* ───────────────────────── Dictate stage ───────────────────────── */
+.stage-lede {
+  margin: 0 0 30px;
+  max-width: 46ch;
+  color: var(--ink-dim);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.key {
+  display: inline-block;
+  font: 600 12px/1 var(--mono);
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 4px 6px;
+  margin: 0 1px;
+  vertical-align: 1px;
+}
+
+.turn-text {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(22px, 5.4vw, 30px);
+  line-height: 1.34;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  border-left: 2px solid var(--hot-deep);
+  padding-left: 16px;
+}
+.turn-text::before { content: "\201C"; color: var(--ink-ghost); }
+.turn-text::after { content: "\201D"; color: var(--ink-ghost); }
+
+.readout { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
+/* Evidence chips. Never an adjective on its own: every chip carries the
+   number it was derived from. */
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px 5px 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-ghost);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  font: 500 12.5px var(--mono);
+  white-space: nowrap;
+}
+.chip-type { color: var(--ink); text-transform: lowercase; }
+.chip-word { color: var(--hot-bright); font-family: var(--serif); font-size: 14px; }
+.chip-num { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+.chip-emphasis { border-left-color: var(--hot-bright); }
+.chip-yelling { border-left-color: var(--flag-red); }
+.chip-urgency { border-left-color: var(--hot); }
+.chip-hesitation { border-left-color: var(--flag-violet); }
+.chip-confusion, .chip-uncertainty { border-left-color: var(--flag-blue); }
+.chip-tension { border-left-color: var(--flag-amber); }
+.chip-lexical_prosodic_mismatch { border-left-color: var(--cool); }
+
+.chip[data-provisional="true"] { border-style: dashed; background: transparent; }
+
+.readout-empty { margin: 18px 0 0; color: var(--ink-faint); font-size: 14px; font-style: italic; }
+
+.delivery {
+  margin: 20px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+.delivery div { display: flex; flex-direction: column; gap: 1px; }
+.delivery dt {
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+}
+.delivery dd { margin: 0; font-size: 14.5px; color: var(--ink); }
+
+.legend {
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+}
+
+.block { margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+.block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); }
+.block-pre {
+  margin: 0;
+  padding: 14px;
+  font: 400 12.5px/1.65 var(--mono);
+  color: var(--ink-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.specimen {
+  margin-top: 4px;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--line-soft);
+  opacity: 0.44;
+}
+.specimen-caption { margin: 0 0 14px; font-size: 13px; color: var(--ink-faint); }
+.specimen .turn-text { font-size: clamp(19px, 4.4vw, 24px); border-left-color: var(--ink-ghost); }
+
+/* The typed fallback. Reached when a take has audio but no words — either the
+   engine is set to none, or recognition was refused. Prosody still works,
+   because it never needed the recogniser. */
+.type-fallback {
+  margin-top: 26px;
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--cool-deep);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.type-fallback[hidden] { display: none; }
+.type-fallback label { font: 600 13.5px var(--sans); }
+.type-fallback textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+.type-fallback textarea::placeholder { color: var(--ink-ghost); }
+.type-fallback textarea:focus-visible { border-color: var(--cool-deep); }
+.type-fallback .btn { justify-self: start; }
+
+.stage-error {
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 93, 93, 0.35);
+  border-left: 3px solid var(--flag-red);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 93, 93, 0.06);
+  color: #ffc9c9;
+  font-size: 14px;
+}
+.stage-error[hidden] { display: none; }
+
+/* ───────────────────────── Buttons ───────────────────────── */
+.btn, .btn-quiet {
+  appearance: none;
+  font: 600 13.5px var(--sans);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.btn {
+  background: linear-gradient(180deg, var(--hot-bright), var(--hot));
+  color: #1d0d02;
+  border: 0;
+  padding: 10px 18px;
+}
+.btn:hover { background: linear-gradient(180deg, #ffb066, var(--hot)); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-quiet {
+  background: var(--panel-2);
+  color: var(--ink-dim);
+  border: 1px solid var(--line);
+  padding: 7px 12px;
+}
+.btn-quiet:hover { color: var(--ink); border-color: var(--ink-ghost); }
+.btn-quiet.danger:hover { color: var(--flag-red); border-color: rgba(255, 93, 93, 0.5); }
+.btn-quiet.is-done { color: var(--cool-bright); border-color: var(--cool-deep); }
+
+.copy-mark {
+  width: 11px; height: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  position: relative;
+}
+.copy-mark::after {
+  content: "";
+  position: absolute;
+  left: 2px; top: -4px;
+  width: 11px; height: 11px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+.is-done .copy-mark { border: 0; }
+.is-done .copy-mark::after {
+  left: 0; top: 0;
+  width: 11px; height: 6px;
+  border: 0;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  border-radius: 0;
+  transform: rotate(-45deg);
+}
+
+/* ───────────────────────── History ledger ─────────────────────────
+   A ledger with hairline rules and a flag-coloured rail, not a card grid:
+   these are entries in a log, and they read as one continuous record. */
+.ledger { list-style: none; margin: 0; padding: 0; }
+.ledger li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+  padding: 16px 0 16px 14px;
+  border-top: 1px solid var(--line-soft);
+  border-left: 2px solid var(--line);
+}
+.ledger li:last-child { border-bottom: 1px solid var(--line-soft); }
+.ledger li[data-lead="yelling"] { border-left-color: var(--flag-red); }
+.ledger li[data-lead="urgency"] { border-left-color: var(--hot); }
+.ledger li[data-lead="emphasis"] { border-left-color: var(--hot-bright); }
+.ledger li[data-lead="hesitation"] { border-left-color: var(--flag-violet); }
+.ledger li[data-lead="confusion"], .ledger li[data-lead="uncertainty"] { border-left-color: var(--flag-blue); }
+.ledger li[data-lead="tension"] { border-left-color: var(--flag-amber); }
+
+.entry-text {
+  grid-column: 1;
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.entry-meta {
+  grid-column: 2;
+  grid-row: 1;
+  font: 500 11.5px var(--mono);
+  color: var(--ink-ghost);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.entry-readout { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.entry-readout .chip { font-size: 11.5px; padding: 3px 8px; }
+.entry-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 10px; }
+.entry-actions .btn-quiet { padding: 5px 10px; font-size: 12.5px; }
+
+.empty { color: var(--ink-faint); font-size: 14px; font-style: italic; }
+.empty[hidden] { display: none; }
+
+/* ───────────────────────── Settings ───────────────────────── */
+.settings { display: grid; gap: 26px; max-width: 480px; }
+.field { display: grid; gap: 7px; }
+.field label, .field .label { font: 600 13.5px var(--sans); color: var(--ink); }
+.field select {
+  appearance: none;
+  width: 100%;
+  font: 500 14px var(--sans);
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.field select:hover { border-color: var(--ink-ghost); }
+.field-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-faint); }
+.field-wide .btn-quiet { justify-self: start; margin-top: 4px; }
+
+/* ───────────────────────── The pill ─────────────────────────
+   Self-contained: position, size and colour come from this block and the
+   --pill-* tokens only. Drop .pill-layer into a frameless overlay window and
+   it renders identically. */
+.pill-layer {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.pill {
+  position: relative;
+  pointer-events: auto;
+  width: var(--pill-w);
+  height: var(--pill-h);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--pill-h) / 2);
+  background: rgba(17, 19, 23, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  transition: width 0.28s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.pill-hit {
+  position: absolute;
+  inset: 0;
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+.pill-lamp {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--ink-ghost);
+  flex: none;
+  transition: background 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.pill-scope { width: 100%; height: 24px; display: none; }
+.pill-msg {
+  min-width: 0;
+  font: 500 13px var(--sans);
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pill-elapsed {
+  font: 500 12px var(--mono);
+  color: var(--ink-ghost);
+  font-variant-numeric: tabular-nums;
+  display: none;
+}
+
+/* idle — minimal resting capsule */
+.pill[data-state="idle"] { width: max-content; min-width: 180px; }
+
+/* listening */
+.pill[data-state="listening"] { border-color: rgba(255, 122, 24, 0.45); }
+.pill[data-state="listening"] .pill-lamp { background: var(--hot); box-shadow: 0 0 12px var(--hot); animation: lamp 1.05s steps(2, start) infinite; }
+.pill[data-state="listening"] .pill-scope { display: block; }
+.pill[data-state="listening"] .pill-msg { display: none; }
+.pill[data-state="listening"] .pill-elapsed { display: block; color: var(--hot-bright); }
+@keyframes lamp { 50% { opacity: 0.3; } }
+
+/* thinking — a single shimmer sweep, the only decorative motion in the app */
+.pill[data-state="thinking"] .pill-lamp { background: var(--cool-deep); }
+.pill[data-state="thinking"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 24%, rgba(54, 214, 195, 0.18) 48%, transparent 72%);
+  animation: sweep 1.05s linear infinite;
+  pointer-events: none;
+}
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* inserted */
+.pill[data-state="inserted"] { border-color: var(--cool-deep); }
+.pill[data-state="inserted"] .pill-lamp {
+  width: 12px; height: 7px;
+  border: 0;
+  border-left: 2px solid var(--cool);
+  border-bottom: 2px solid var(--cool);
+  border-radius: 0;
+  background: none;
+  transform: rotate(-45deg) translate(1px, -1px);
+  box-shadow: none;
+}
+.pill[data-state="inserted"] .pill-msg { color: var(--cool-bright); }
+
+/* error */
+.pill[data-state="error"] { border-color: rgba(255, 93, 93, 0.5); width: max-content; max-width: min(92vw, 420px); }
+.pill[data-state="error"] .pill-lamp { background: var(--flag-red); box-shadow: 0 0 10px rgba(255, 93, 93, 0.7); }
+.pill[data-state="error"] .pill-msg { color: #ffc9c9; white-space: normal; line-height: 1.35; font-size: 12.5px; }
+
+.pill-chips {
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: min(92vw, 460px);
+}
+.pill-chips .chip {
+  background: rgba(17, 19, 23, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 11.5px;
+  padding: 4px 9px;
+}
+
+/* ───────────────────────── Onboarding ───────────────────────── */
+.onboard {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(7, 8, 10, 0.86);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gutter);
+  padding-bottom: calc(var(--gutter) + env(safe-area-inset-bottom));
+}
+.onboard[hidden] { display: none; }
+
+.onboard-card {
+  width: min(100%, 480px);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.onboard-rail { list-style: none; display: flex; gap: 0; margin: 0 0 22px; padding: 0; }
+.onboard-rail li {
+  flex: 1;
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+  padding-top: 8px;
+  border-top: 2px solid var(--line);
+}
+.onboard-rail li[data-done="true"] { border-top-color: var(--cool-deep); color: var(--ink-faint); }
+.onboard-rail li[aria-current="step"] { border-top-color: var(--hot); color: var(--hot-bright); }
+
+.onboard-title { margin: 0 0 8px; font: 600 21px/1.25 var(--sans); letter-spacing: -0.015em; }
+.onboard-body { margin: 0 0 18px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.55; max-width: 44ch; }
+.onboard-slot:empty { display: none; }
+.onboard-status { margin: 14px 0 0; font: 500 12.5px var(--mono); color: var(--ink-faint); min-height: 1.2em; }
+.onboard-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+
+.calib-line {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--cool-deep);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.4;
+}
+.hotkey-choices { display: grid; gap: 8px; }
+.hotkey-choice {
+  appearance: none;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink-dim);
+  font: 500 13.5px var(--sans);
+  cursor: pointer;
+}
+.hotkey-choice[aria-pressed="true"] { border-color: var(--hot-deep); color: var(--ink); background: rgba(255, 122, 24, 0.07); }
+.hotkey-choice .mono { font: 600 12px var(--mono); color: var(--ink-faint); }
+.hotkey-choice[aria-pressed="true"] .mono { color: var(--hot-bright); }
+
+/* ───────────────────────── Motion ───────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .pill[data-state="thinking"]::after { display: none; }
+}

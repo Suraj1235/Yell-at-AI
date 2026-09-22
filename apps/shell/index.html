@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yell@AI — dictation that carries how you said it</title>
+<meta name="description" content="Hold a key, say it the way you mean it. Yell@AI hands your assistant the transcript plus auditable evidence of your delivery.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'self' blob: mediastream:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yell@AI">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="stylesheet" href="./shell.css">
+<script type="module" src="./core/app.js"></script>
+</head>
+<body data-view="dictate" data-state="idle">
+
+<div class="grain" aria-hidden="true"></div>
+<a class="skip-link" href="#stage">Skip to dictation</a>
+
+<header class="app-head">
+  <a class="wordmark" href="./" aria-label="Yell at AI">
+    <span class="wordmark-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    <span class="wordmark-text">Yell<i class="wordmark-at">@</i>AI</span>
+  </a>
+
+  <nav class="app-nav" aria-label="Sections">
+    <button type="button" class="nav-tab" data-goto="dictate" aria-current="page">Dictate</button>
+    <button type="button" class="nav-tab" data-goto="history">History</button>
+    <button type="button" class="nav-tab" data-goto="settings">Settings</button>
+  </nav>
+</header>
+
+<!--
+  The engine badge. Rendered above everything you can dictate into, on first
+  paint, before capture is possible, and never hidden or removed. Its wording
+  comes from the shared engine registry so this page and the CLI cannot
+  disagree about who receives the audio.
+-->
+<div class="engine-badge" id="engine-badge" data-egress="none" role="status">
+  <span class="engine-badge-mark" aria-hidden="true"></span>
+  <span class="engine-badge-body">
+    <strong class="engine-badge-title" id="engine-badge-title">Transcription engine — Browser Web Speech API</strong>
+    <span class="engine-badge-detail" id="engine-badge-detail">Your audio is sent to Google (Chrome/Edge) or Apple (Safari) for recognition. Only transcription leaves this device: prosody analysis runs here, in this page.</span>
+  </span>
+</div>
+
+<main class="app-main">
+
+  <!-- ─────────────── Dictate ─────────────── -->
+  <section id="stage" class="view view-dictate" data-view="dictate">
+
+    <p class="stage-lede">
+      Hold <kbd class="key" id="hint-key">Ctrl</kbd><kbd class="key">Alt</kbd><kbd class="key">Y</kbd>
+      and say it the way you mean it. Release to read it back.
+    </p>
+
+    <article class="turn" id="turn" hidden aria-labelledby="turn-heading">
+      <h2 class="sr-only" id="turn-heading">Your last turn</h2>
+      <blockquote class="turn-text" id="turn-text"></blockquote>
+      <div class="readout" id="turn-readout"></div>
+      <dl class="delivery" id="turn-delivery"></dl>
+
+      <div class="block">
+        <div class="block-head">
+          <span class="legend">vocal-context block</span>
+          <button type="button" class="btn-quiet" id="copy-block">
+            <span class="copy-mark" aria-hidden="true"></span><span id="copy-block-label">Copy</span>
+          </button>
+        </div>
+        <pre class="block-pre" id="turn-block"></pre>
+      </div>
+    </article>
+
+    <section class="specimen" id="specimen" aria-labelledby="specimen-caption">
+      <p class="specimen-caption" id="specimen-caption">An example of a finished read, so you know the shape of it</p>
+      <blockquote class="turn-text">make the whole thing simpler</blockquote>
+      <div class="readout">
+        <span class="chip chip-emphasis"><span class="chip-type">emphasis</span><span class="chip-word">&ldquo;whole&rdquo;</span><span class="chip-num">z 1.23</span></span>
+        <span class="chip chip-urgency"><span class="chip-type">urgency</span><span class="chip-num">conf 0.71</span></span>
+      </div>
+    </section>
+
+    <form class="type-fallback" id="type-fallback" hidden>
+      <label for="fallback-text">Type what you said</label>
+      <p class="field-note">That take has audio but no words, so there is nothing to align the stress to. Type the sentence and the delivery gets read from the recording you already made.</p>
+      <textarea id="fallback-text" rows="2" placeholder="make the whole thing simpler"></textarea>
+      <button type="submit" class="btn" id="fallback-run">Read the delivery</button>
+    </form>
+
+    <p class="stage-error" id="stage-error" hidden></p>
+  </section>
+
+  <!-- ─────────────── History ─────────────── -->
+  <section class="view view-history" data-view="history" hidden aria-labelledby="history-heading">
+    <div class="view-head">
+      <h2 id="history-heading">History</h2>
+      <p class="view-sub">The last 100 turns, stored in this browser only. Nothing is synced anywhere.</p>
+      <button type="button" class="btn-quiet danger" id="history-clear">Delete all</button>
+    </div>
+    <ol class="ledger" id="ledger"></ol>
+    <p class="empty" id="history-empty">No turns yet. Dictate one and it lands here.</p>
+  </section>
+
+  <!-- ─────────────── Settings ─────────────── -->
+  <section class="view view-settings" data-view="settings" hidden aria-labelledby="settings-heading">
+    <div class="view-head">
+      <h2 id="settings-heading">Settings</h2>
+      <p class="view-sub">Everything here is stored on this device.</p>
+    </div>
+
+    <form class="settings" id="settings-form">
+      <div class="field">
+        <label for="set-engine">Transcription engine</label>
+        <select id="set-engine" name="engine"></select>
+        <p class="field-note" id="set-engine-note"></p>
+      </div>
+
+      <div class="field">
+        <label for="set-mic">Microphone</label>
+        <select id="set-mic" name="mic"><option value="">System default</option></select>
+        <p class="field-note">Device names appear once you have granted microphone access.</p>
+      </div>
+
+      <div class="field">
+        <label for="set-verbosity">Block verbosity</label>
+        <select id="set-verbosity" name="verbosity">
+          <option value="subtle">Compact — flags, stress and delivery</option>
+          <option value="full">Full — everything, including the alignment report</option>
+        </select>
+        <p class="field-note">How much of the vocal-context block gets written next to your words.</p>
+      </div>
+
+      <div class="field">
+        <label for="set-hotkey">Hold-to-talk key</label>
+        <select id="set-hotkey" name="hotkey"></select>
+        <p class="field-note">Held keys never fire while you are typing in a text box.</p>
+      </div>
+
+      <div class="field">
+        <label for="set-live">Live read while you speak</label>
+        <select id="set-live" name="live">
+          <option value="on">On — provisional chips appear as you speak</option>
+          <option value="off">Off — read only after you release</option>
+        </select>
+        <p class="field-note">Live chips are a provisional read of the last second. The block written on release is the authoritative one.</p>
+      </div>
+
+      <div class="field field-wide">
+        <span class="label">Your voice baseline</span>
+        <p class="field-note" id="baseline-note">Not calibrated yet. Readings fall back to this session's own spread.</p>
+        <button type="button" class="btn-quiet" id="recalibrate">Calibrate again</button>
+      </div>
+    </form>
+  </section>
+
+</main>
+
+<!-- ─────────────── The pill ───────────────
+  Fixed overlay. Its geometry and styling live entirely in .pill-layer / .pill
+  and depend on nothing in the page around them, so a frameless Tauri overlay
+  window can host this same markup unchanged.
+-->
+<div class="pill-layer" id="pill-layer">
+  <div class="pill" id="pill" data-state="idle" role="group" aria-label="Dictation">
+    <span class="pill-lamp" aria-hidden="true"></span>
+    <canvas class="pill-scope" id="pill-scope" width="560" height="96" aria-hidden="true"></canvas>
+    <span class="pill-msg" id="pill-msg">Hold to talk</span>
+    <span class="pill-elapsed mono" id="pill-elapsed">0.0s</span>
+    <button type="button" class="pill-hit" id="pill-hit" aria-describedby="pill-help">
+      <span class="sr-only" id="pill-hit-label">Hold to talk</span>
+    </button>
+  </div>
+  <div class="pill-chips" id="pill-chips" aria-hidden="true"></div>
+  <p class="sr-only" id="pill-help">Press and hold to dictate, or press once to keep recording until you press again. Escape cancels.</p>
+</div>
+
+<!-- ─────────────── Onboarding ─────────────── -->
+<div class="onboard" id="onboard" hidden role="dialog" aria-modal="true" aria-labelledby="onboard-title">
+  <div class="onboard-card">
+    <ol class="onboard-rail" id="onboard-rail">
+      <li data-step="permission">Microphone</li>
+      <li data-step="hotkey">Key</li>
+      <li data-step="calibrate">Calibration</li>
+      <li data-step="test">First turn</li>
+    </ol>
+
+    <h2 class="onboard-title" id="onboard-title"></h2>
+    <p class="onboard-body" id="onboard-body"></p>
+    <div class="onboard-slot" id="onboard-slot"></div>
+    <p class="onboard-status mono" id="onboard-status" role="status"></p>
+
+    <div class="onboard-actions">
+      <button type="button" class="btn-quiet" id="onboard-skip">Skip setup</button>
+      <button type="button" class="btn" id="onboard-next">Continue</button>
+    </div>
+  </div>
+</div>
+
+<p class="sr-only" id="announcer" role="status" aria-live="polite"></p>
+
+</body>
+</html>

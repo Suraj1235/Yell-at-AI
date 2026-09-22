@@ -69,6 +69,7 @@
     "smoke": "npm run fixtures && node scripts/smoke.mjs",
     "readiness": "node scripts/release-readiness.mjs",
     "desktop:check": "node scripts/validate-desktop-scaffold.mjs",
+    "shell": "node scripts/serve-shell.mjs",
     "harness:conformance": "npm run fixtures && node scripts/harness-conformance.mjs",
     "eval:judge": "npm run fixtures && node eval/llm-judge/run.mjs --dry-run",
     "eval:judge:mock": "npm run fixtures && node eval/llm-judge/run.mjs --provider mock",
