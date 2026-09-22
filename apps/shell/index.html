@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Yell@AI — dictation that carries how you said it</title>
 <meta name="description" content="Hold a key, say it the way you mean it. Yell@AI hands your assistant the transcript plus auditable evidence of your delivery.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'self' blob: mediastream:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost; media-src 'self' blob: mediastream:; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
 <meta name="theme-color" content="#0a0b0d">
 <meta name="color-scheme" content="dark">
 <meta name="mobile-web-app-capable" content="yes">
@@ -156,7 +156,27 @@
       <div class="field">
         <label for="set-hotkey">Hold-to-talk key</label>
         <select id="set-hotkey" name="hotkey"></select>
-        <p class="field-note">Held keys never fire while you are typing in a text box.</p>
+        <p class="field-note" id="set-hotkey-note">Held keys never fire while you are typing in a text box.</p>
+      </div>
+
+      <div class="field" data-host="desktop" hidden>
+        <label for="set-insert-ai">In AI apps</label>
+        <select id="set-insert-ai" name="insertAi">
+          <option value="block">Full block — your words, then the vocal-context evidence</option>
+          <option value="text">Plain text — your words only</option>
+          <option value="ask">Ask — copy the block, paste nothing, let me choose</option>
+        </select>
+        <p class="field-note">Claude, ChatGPT, Cursor, VS Code, and terminals, where an assistant reads what you paste.</p>
+      </div>
+
+      <div class="field" data-host="desktop" hidden>
+        <label for="set-insert-other">Everywhere else</label>
+        <select id="set-insert-other" name="insertOther">
+          <option value="text">Plain text — your words only</option>
+          <option value="block">Full block — your words, then the vocal-context evidence</option>
+          <option value="ask">Ask — copy the block, paste nothing, let me choose</option>
+        </select>
+        <p class="field-note">Slack, email, documents. Your words are never rewritten either way; this only decides whether the evidence rides along.</p>
       </div>
 
       <div class="field">
@@ -184,6 +204,15 @@
           <option value="off">Off — read only after you release</option>
         </select>
         <p class="field-note">Live chips are a provisional read of the last second. The block written on release is the authoritative one.</p>
+      </div>
+
+      <div class="field" data-host="desktop" hidden>
+        <label for="set-autostart">Launch at login</label>
+        <select id="set-autostart" name="autostart">
+          <option value="off">Off — start it yourself</option>
+          <option value="on">On — sit in the tray from sign-in</option>
+        </select>
+        <p class="field-note" id="set-autostart-note">Kept by the operating system, not in these settings.</p>
       </div>
 
       <div class="field field-wide">
