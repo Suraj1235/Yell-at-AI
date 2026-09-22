@@ -430,6 +430,14 @@
 
       async function startCapture() {
         if (capture) return;
+        // Tauri serves the app from *.localhost, which Chromium treats as a
+        // secure context, so mediaDevices should be there - but say something
+        // useful rather than "cannot read properties of undefined" if it is not.
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(
+            "This webview exposes no microphone API. Leave 'capture in this window' off and let the Node CLI record instead."
+          );
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { channelCount: 1, echoCancellation: true, noiseSuppression: false }
         });
