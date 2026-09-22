@@ -8,12 +8,32 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "Subtext Desktop",
         "width": 760,
         "height": 680,
         "resizable": true
+      },
+      {
+        "label": "pill",
+        "url": "pill.html",
+        "title": "Subtext overlay",
+        "width": 180,
+        "height": 48,
+        "visible": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focusable": false,
+        "shadow": false
       }
     ],
     "security": {
@@ -27,7 +47,20 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": "all"
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Productivity",
+    "shortDescription": "Dictation that carries how you said it.",
+    "longDescription": "Hold a hotkey, speak, and your words land in the focused app with a vocalcontext/v1 evidence block attached. Prosody analysis is local and model-free.",
+    "copyright": "Copyright (c) Suraj Kuncham and Manish Sampathirao",
+    "publisher": "Subtext",
+    "licenseFile": "../../../LICENSE"
   }
 }

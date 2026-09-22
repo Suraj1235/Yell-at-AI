@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subtext overlay</title>
+    <style>
+      /*
+        The overlay pill. 180x48 logical px, frameless, transparent,
+        always-on-top, non-focusable, click-through. It is the only thing the
+        user sees during a turn, so it has exactly one job: say truthfully
+        whether the microphone is live.
+      */
+      :root {
+        color-scheme: dark;
+        --ink: #f4f7fb;
+        --muted: #9aa5b4;
+        --teal: #2dd4bf;
+        --violet: #8b5cf6;
+        --amber: #f5b14c;
+        --rose: #fb7185;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        /* Belt and braces: the window is already click-through natively. */
+        user-select: none;
+        cursor: default;
+      }
+
+      #pill {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: linear-gradient(135deg, rgba(20, 22, 28, 0.94), rgba(11, 12, 15, 0.94));
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        opacity: 0;
+        transform: scale(0.96);
+        transition: opacity 140ms ease, transform 140ms ease, border-color 200ms ease;
+      }
+
+      #pill[data-visible="true"] {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* The dot is the honesty indicator: solid red-ish while the mic is live. */
+      #dot {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+
+      #pill[data-state="listening"] { border-color: rgba(45, 212, 191, 0.55); }
+      #pill[data-state="listening"] #dot {
+        background: var(--teal);
+        animation: pulse 1.1s ease-in-out infinite;
+      }
+      #pill[data-state="thinking"] { border-color: rgba(139, 92, 246, 0.55); }
+      #pill[data-state="thinking"] #dot { background: var(--violet); }
+      #pill[data-state="delivered"] { border-color: rgba(45, 212, 191, 0.7); }
+      #pill[data-state="delivered"] #dot { background: var(--teal); }
+      #pill[data-state="failed"] { border-color: rgba(251, 113, 133, 0.7); }
+      #pill[data-state="failed"] #dot { background: var(--rose); }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
+      }
+
+      #wave {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 3px;
+        height: 24px;
+      }
+
+      #wave span {
+        display: block;
+        width: 3px;
+        min-height: 3px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--muted);
+        transition: height 90ms linear, background-color 220ms ease;
+      }
+
+      #pill[data-state="listening"] #wave span { background: var(--teal); }
+      /* The signature moment: the waveform tints violet as emphasis is read. */
+      #pill[data-emphasis="true"] #wave span { background: var(--violet); }
+      #pill[data-state="thinking"] #wave span {
+        background: var(--violet);
+        animation: shimmer 1.2s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 1; }
+      }
+
+      #label {
+        flex: 0 0 auto;
+        max-width: 78px;
+        font-size: 11px;
+        line-height: 1.1;
+        letter-spacing: 0.01em;
+        color: var(--muted);
+        text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #pill[data-state="delivered"] #label { color: var(--teal); }
+      #pill[data-state="failed"] #label { color: var(--rose); }
+
+      #chips {
+        position: absolute;
+        left: 14px;
+        bottom: 2px;
+        display: flex;
+        gap: 4px;
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--amber);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="pill" data-state="ready" data-visible="false">
+      <span id="dot"></span>
+      <div id="wave" aria-hidden="true"></div>
+      <div id="label">Ready</div>
+      <div id="chips"></div>
+    </div>
+
+    <script>
+      // Contract, documented in apps/desktop/CONTRACT.md:
+      //   subtext://status  {status, detail, seq}   Rust -> everyone
+      //   subtext://hotkey  {phase, mode, turn, ..} Rust -> everyone
+      //   subtext://pill    {level, flags, label}   frontend -> this window
+      const BAR_COUNT = 14;
+      const pill = document.getElementById("pill");
+      const label = document.getElementById("label");
+      const chips = document.getElementById("chips");
+      const wave = document.getElementById("wave");
+      const bars = [];
+
+      for (let index = 0; index < BAR_COUNT; index += 1) {
+        const bar = document.createElement("span");
+        wave.appendChild(bar);
+        bars.push(bar);
+      }
+
+      let level = 0;
+      let idleAt = 0;
+
+      function setState(state, text) {
+        pill.dataset.state = state;
+        pill.dataset.visible = "true";
+        if (text) label.textContent = text;
+      }
+
+      function setLevel(next) {
+        level = Math.max(0, Math.min(1, Number(next) || 0));
+      }
+
+      function setFlags(flags) {
+        const list = Array.isArray(flags) ? flags.slice(0, 2) : [];
+        chips.textContent = list.join(" · ");
+        pill.dataset.emphasis = list.includes("emphasis") ? "true" : "false";
+      }
+
+      // A cheap idle animation so a live mic never looks frozen, modulated by
+      // whatever level the capturing frontend reports.
+      function paint(now) {
+        const state = pill.dataset.state;
+        const live = state === "listening";
+        for (let index = 0; index < bars.length; index += 1) {
+          let height = 3;
+          if (live) {
+            const phase = now / 170 + index * 0.55;
+            const envelope = 0.35 + 0.65 * level;
+            height = 3 + Math.abs(Math.sin(phase)) * 19 * envelope;
+          } else if (state === "thinking") {
+            height = 3 + Math.abs(Math.sin(now / 260 + index * 0.4)) * 7;
+          }
+          bars[index].style.height = `${height.toFixed(1)}px`;
+        }
+        requestAnimationFrame(paint);
+      }
+      requestAnimationFrame(paint);
+
+      const listen = window.__TAURI__?.event?.listen;
+      if (listen) {
+        listen("subtext://status", (event) => {
+          const status = String(event.payload?.status ?? "Ready").toLowerCase();
+          setState(status, event.payload?.status ?? "Ready");
+          if (status === "ready") {
+            setLevel(0);
+            setFlags([]);
+          }
+          if (status === "delivered") label.textContent = "Inserted";
+          if (status === "failed") label.textContent = "Failed";
+          idleAt = Date.now();
+        });
+
+        listen("subtext://hotkey", (event) => {
+          const phase = event.payload?.phase;
+          if (phase === "start") {
+            setFlags([]);
+            setLevel(0);
+            setState("listening", "Listening");
+          }
+          if (phase === "cancel") setState("ready", "Cancelled");
+        });
+
+        listen("subtext://pill", (event) => {
+          const payload = event.payload ?? {};
+          if (payload.level !== undefined) setLevel(payload.level);
+          if (payload.flags !== undefined) setFlags(payload.flags);
+          if (payload.label) label.textContent = payload.label;
+        });
+      }
+    </script>
+  </body>
+</html>
