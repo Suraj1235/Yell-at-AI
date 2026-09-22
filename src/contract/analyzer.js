@@ -36,6 +36,12 @@ const THRESHOLDS = {
   pauseDensityHighNoBaseline: 0.28,
   pauseDensityModerateNoBaseline: 0.12,
 
+  // buildFlags: hesitation from filled pauses ("um", "uh", ...), as a rate per
+  // word rather than a raw count. 0.04 is one filler per 25 words: the golden
+  // hesitation fixture (1 in 8 words, 0.125) clears it comfortably, while the
+  // wild-eval false positives (1 in 87 and 1 in 112 words, ~0.01) do not.
+  hesitationFilledPauseRate: 0.04,
+
   // categorizePitchRange (semitones).
   pitchRangeBaselineZ: 1.35,
   pitchRangeBaselineDeltaSemitones: 1.5,
@@ -561,14 +567,24 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
     });
   }
 
-  if (filledPauseCount > 0 || prosody.pauseDensity === "high") {
-    const evidence = filledPauseCount > 0
-      ? `${filledPauseCount} filled pause${filledPauseCount === 1 ? "" : "s"} + ${prosody.pauseDensity} pause density`
+  // Filled pauses are scored as a RATE, not a count. A single "um" in an
+  // 87-word answer is fluent speech; the same "um" in an 8-word push-to-talk
+  // turn is a real hesitation cue. The wild YouTube eval showed the old
+  // count>0 rule flagging calm lecturers and briefers as hesitant on exactly
+  // one filler, which for dictation means telling the assistant the user is
+  // unsure when they were merely speaking deliberately.
+  const wordCount = Math.max(1, normalizedWords.length);
+  const filledPauseRate = filledPauseCount / wordCount;
+  const hesitantFromFillers = filledPauseCount > 0 && filledPauseRate >= THRESHOLDS.hesitationFilledPauseRate;
+
+  if (hesitantFromFillers || prosody.pauseDensity === "high") {
+    const evidence = hesitantFromFillers
+      ? `${filledPauseCount} filled pause${filledPauseCount === 1 ? "" : "s"} in ${wordCount} words + ${prosody.pauseDensity} pause density`
       : "high pause density";
     flags.push({
       type: "hesitation",
       evidence,
-      conf: confidence(filledPauseCount > 0 ? 0.78 : 0.62)
+      conf: confidence(hesitantFromFillers ? 0.62 + Math.min(0.2, filledPauseRate * 1.2) : 0.62)
     });
   }
 
