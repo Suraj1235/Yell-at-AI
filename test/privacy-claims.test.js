@@ -18,7 +18,20 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 // copy that happens to live in a .js file. apps/web/app.js is included for the
 // same reason: it holds the engine-badge copy, and the directory sweep below
 // only picks up .md/.html, so a .js file needs to be listed here to be swept.
-const ALWAYS_SHIPPED = ["README.md", "src/cli.js", "apps/web/app.js"];
+//
+// apps/shell/core/badge.js and apps/shell/core/settings.js are listed for the
+// same reason as apps/web/app.js: they hold the product shell's engine-badge
+// and engine-picker copy, which is user-facing prose that happens to live in a
+// .js file. apps/shell/sw.js is listed because its header describes what does
+// and does not work offline.
+const ALWAYS_SHIPPED = [
+  "README.md",
+  "src/cli.js",
+  "apps/web/app.js",
+  "apps/shell/core/badge.js",
+  "apps/shell/core/settings.js",
+  "apps/shell/sw.js"
+];
 
 // Pages that must never fall out of the scan. If a future edit to "files"
 // stops shipping one of these, that is a packaging bug and this list catches
@@ -31,7 +44,9 @@ const MUST_BE_COVERED = [
   "apps/web/README.md",
   "docs/WEB_PREVIEW.md",
   "docs/NATURAL_SPEECH.md",
-  "src/cli.js"
+  "src/cli.js",
+  "apps/shell/index.html",
+  "apps/shell/core/badge.js"
 ];
 
 // Only .md and .html are swept out of directories. Sweeping every shipped .js
@@ -163,6 +178,52 @@ test("a persistent engine badge sits above the recorder and names the vendor bef
     /no audio is sent to anyone for recognition/i,
     "the typed-transcript fallback must say that nothing is sent, not warn about a vendor"
   );
+});
+
+// The same point-of-use guard, for the product shell. apps/shell is a separate
+// entry from apps/web and would otherwise be able to ship a quieter badge than
+// the landing page's.
+test("the shell's engine badge sits above the app and is honest in every engine state", async () => {
+  const html = await readFile(join(ROOT, "apps/shell/index.html"), "utf8");
+
+  const badgeAt = html.indexOf('id="engine-badge"');
+  const mainAt = html.indexOf('<main class="app-main">');
+  const pillAt = html.indexOf('id="pill"');
+  assert.ok(badgeAt > -1, "the shell must render an engine badge");
+  assert.ok(mainAt > -1 && pillAt > -1, "the shell must still have its main region and its pill");
+  assert.ok(badgeAt < mainAt, "the badge must come BEFORE anything you can dictate into");
+
+  const badge = html.slice(badgeAt, mainAt);
+  assert.match(badge, /Web Speech/i, "the badge must name the engine in use");
+  assert.match(badge, /Google/i, "the badge must name the third party that receives the audio");
+  assert.doesNotMatch(
+    badge,
+    /\shidden[\s=>]/,
+    "the badge must be visible on first paint, not revealed later"
+  );
+
+  const source = await readFile(join(ROOT, "apps/shell/core/badge.js"), "utf8");
+  assert.match(
+    source,
+    /ENGINES\.webspeech/,
+    "the shell badge must render the vendor from the shared engine registry, not a hardcoded literal"
+  );
+  assert.doesNotMatch(
+    source,
+    /badge\.(hidden|remove\(\))/,
+    "the badge is non-dismissible: nothing may hide or remove it"
+  );
+  // The shell can be set to an engine that sends nothing. That state must say
+  // so rather than keep warning about a vendor it is no longer using.
+  assert.match(
+    source,
+    /no audio is sent to anyone for recognition/i,
+    "the engine-set-to-none state must say that nothing is sent, not warn about a vendor"
+  );
+
+  // ...and the shell must actually be able to reach that state.
+  const settings = await readFile(join(ROOT, "apps/shell/core/settings.js"), "utf8");
+  assert.match(settings, /None — I type the words/, "the engine picker must offer an engine that sends nothing");
 });
 
 test("the engine badge's vendor string comes from the registry and names Google", () => {
