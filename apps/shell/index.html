@@ -213,7 +213,9 @@
   </div>
   <div class="pill-chips" id="pill-chips" aria-hidden="true"></div>
   <p class="pill-warn" id="pill-warn" role="status" hidden></p>
-  <div class="toast" id="toast" role="status" hidden>
+  <!-- Not a live region itself: the shared announcer speaks the message, and
+       two live regions carrying the same sentence get read twice. -->
+  <div class="toast" id="toast" hidden>
     <span class="toast-text" id="toast-text"></span>
     <span class="toast-actions" id="toast-actions"></span>
   </div>
