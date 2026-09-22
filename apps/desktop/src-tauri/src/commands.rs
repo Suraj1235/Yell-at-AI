@@ -553,7 +553,7 @@ pub fn subtext_history_list(
     request: Option<HistoryListRequest>,
 ) -> Result<Vec<HistoryEntry>, String> {
     app.state::<History>()
-        .list(request.and_then(|request| request.limit))
+        .list(&app, request.and_then(|request| request.limit))
 }
 
 #[tauri::command]
@@ -561,23 +561,23 @@ pub fn subtext_history_append(
     app: AppHandle,
     entry: NewHistoryEntry,
 ) -> Result<HistoryEntry, String> {
-    app.state::<History>().append(entry)
+    app.state::<History>().append(&app, entry)
 }
 
 #[tauri::command]
 pub fn subtext_history_delete(app: AppHandle, id: String) -> Result<bool, String> {
-    app.state::<History>().delete(&id)
+    app.state::<History>().delete(&app, &id)
 }
 
 #[tauri::command]
 pub fn subtext_history_clear(app: AppHandle) -> Result<usize, String> {
-    app.state::<History>().clear()
+    app.state::<History>().clear(&app)
 }
 
 #[tauri::command]
 pub fn subtext_history_path(app: AppHandle) -> Result<String, String> {
     app.state::<History>()
-        .location()
+        .location(&app)
         .map(|path| path.display().to_string())
 }
 

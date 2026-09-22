@@ -49,11 +49,16 @@ pub fn run() {
     let (shortcut, accelerator) = hotkey::resolve_shortcut();
 
     tauri::Builder::default()
+        // All shared state is managed HERE, not in `setup`. Windows declared in
+        // tauri.conf.json are created before `setup` runs, so the webview can
+        // invoke a command while setup is still executing; state managed late
+        // panics that call with "state() called before manage()".
         .manage(Arc::new(StatusState::new(accelerator.clone())))
         .manage(Arc::new(hotkey::HotkeyRuntime::new(
             accelerator,
             Some(shortcut),
         )))
+        .manage(History::new())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_autostart::init(
@@ -69,14 +74,6 @@ pub fn run() {
         )
         .setup(move |app| {
             let handle = app.handle().clone();
-
-            // History lives in the OS app-data directory and never leaves it.
-            let history_path = handle
-                .path()
-                .app_data_dir()
-                .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                .join("history.json");
-            handle.manage(History::new(history_path));
 
             pill::configure(&handle);
 
@@ -209,7 +206,7 @@ fn show_main_window(app: &AppHandle) {
 /// the point of the menu item is that the user can see that for themselves.
 #[cfg(desktop)]
 fn reveal_history(app: &AppHandle) {
-    let Ok(path) = app.state::<History>().location() else {
+    let Ok(path) = app.state::<History>().location(app) else {
         return;
     };
     let Some(folder) = path.parent().map(|parent| parent.to_path_buf()) else {

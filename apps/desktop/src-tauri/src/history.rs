@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use tauri::{Manager, Runtime};
 
 pub const HISTORY_SCHEMA: &str = "subtext/desktop-history/v1";
 pub const HISTORY_LIMIT: usize = 100;
@@ -61,28 +62,48 @@ struct HistoryFile {
 }
 
 pub struct History {
-    path: Mutex<PathBuf>,
+    path: Mutex<Option<PathBuf>>,
     seq: AtomicU64,
 }
 
 impl History {
-    pub fn new(path: PathBuf) -> Self {
+    /// The store is managed at builder time, before there is an `App` to ask
+    /// for the app-data directory. That matters: windows declared in
+    /// `tauri.conf.json` are created before `setup` runs, so the webview can
+    /// invoke a history command while `setup` is still executing. Managing this
+    /// late made that race a `state() called before manage()` panic on startup.
+    /// The path is therefore resolved on first use and cached.
+    pub fn new() -> Self {
         Self {
-            path: Mutex::new(path),
+            path: Mutex::new(None),
             seq: AtomicU64::new(0),
         }
     }
 
-    pub fn location(&self) -> Result<PathBuf, String> {
-        self.path
+    pub fn location<R: Runtime, M: Manager<R>>(&self, app: &M) -> Result<PathBuf, String> {
+        let mut guard = self
+            .path
             .lock()
-            .map(|guard| guard.clone())
-            .map_err(|_| "History store lock was poisoned.".to_string())
+            .map_err(|_| "History store lock was poisoned.".to_string())?;
+        if let Some(path) = guard.as_ref() {
+            return Ok(path.clone());
+        }
+        let path = app
+            .path()
+            .app_data_dir()
+            .map_err(|error| format!("Could not resolve the app data directory: {error}"))?
+            .join("history.json");
+        *guard = Some(path.clone());
+        Ok(path)
     }
 
     /// Newest first.
-    pub fn list(&self, limit: Option<usize>) -> Result<Vec<HistoryEntry>, String> {
-        let path = self.location()?;
+    pub fn list<R: Runtime, M: Manager<R>>(
+        &self,
+        app: &M,
+        limit: Option<usize>,
+    ) -> Result<Vec<HistoryEntry>, String> {
+        let path = self.location(app)?;
         let mut entries = read_file(&path)?.entries;
         if let Some(limit) = limit {
             entries.truncate(limit);
@@ -90,8 +111,12 @@ impl History {
         Ok(entries)
     }
 
-    pub fn append(&self, entry: NewHistoryEntry) -> Result<HistoryEntry, String> {
-        let path = self.location()?;
+    pub fn append<R: Runtime, M: Manager<R>>(
+        &self,
+        app: &M,
+        entry: NewHistoryEntry,
+    ) -> Result<HistoryEntry, String> {
+        let path = self.location(app)?;
         let mut file = read_file(&path)?;
         let at = now_ms();
         let stored = HistoryEntry {
@@ -111,8 +136,8 @@ impl History {
         Ok(stored)
     }
 
-    pub fn delete(&self, id: &str) -> Result<bool, String> {
-        let path = self.location()?;
+    pub fn delete<R: Runtime, M: Manager<R>>(&self, app: &M, id: &str) -> Result<bool, String> {
+        let path = self.location(app)?;
         let mut file = read_file(&path)?;
         let before = file.entries.len();
         file.entries.retain(|entry| entry.id != id);
@@ -123,8 +148,8 @@ impl History {
         Ok(removed)
     }
 
-    pub fn clear(&self) -> Result<usize, String> {
-        let path = self.location()?;
+    pub fn clear<R: Runtime, M: Manager<R>>(&self, app: &M) -> Result<usize, String> {
+        let path = self.location(app)?;
         let mut file = read_file(&path)?;
         let removed = file.entries.len();
         file.entries.clear();
