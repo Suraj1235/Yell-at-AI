@@ -41,7 +41,6 @@
     }
   },
   "plugins": {
-    "global-shortcut": {},
     "shell": {
       "open": false
     }
