@@ -154,6 +154,7 @@ async function boot() {
   let startedAt = 0;
   let spoke = false;
   let quietSince = 0;
+  let pinged = null;
 
   async function startTurn() {
     if (machine.state === "listening" || machine.state === "thinking") return;
@@ -171,7 +172,7 @@ async function boot() {
     live.reset();
     // Before the microphone opens, so the cue marks the gesture rather than
     // the permission round-trip.
-    ping.play();
+    pinged = ping.play();
 
     startedAt = performance.now();
     spoke = false;
@@ -631,6 +632,7 @@ async function boot() {
     get tint() { return pill.waveform.tint; },
     get handsFree() { return hotkey.latched; },
     get pingAudible() { return ping.audible; },
+    get pingPlayed() { return pinged; },
     get settings() { return { ...settings.values }; },
     show,
     startTurn,

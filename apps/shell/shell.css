@@ -440,7 +440,7 @@ body {
   margin-top: 4px;
   padding: 20px 0 0;
   border-top: 1px solid var(--line-soft);
-  opacity: 0.44;
+  opacity: 0.62;
 }
 .specimen-caption { margin: 0 0 14px; font-size: 13px; color: var(--ink-faint); }
 .specimen .turn-text { font-size: clamp(19px, 4.4vw, 24px); border-left-color: var(--ink-ghost); }
