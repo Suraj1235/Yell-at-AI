@@ -111,9 +111,15 @@
     <div class="view-head">
       <h2 id="history-heading">History</h2>
       <p class="view-sub">The last 100 turns, stored in this browser only. Nothing is synced anywhere.</p>
-      <button type="button" class="btn-quiet danger" id="history-clear">Delete all</button>
+      <div class="stats" id="history-stats" hidden></div>
+      <div class="history-tools">
+        <label class="sr-only" for="history-search">Search your turns</label>
+        <input type="search" id="history-search" class="search" placeholder="Search your words, or a flag like “urgency”" autocomplete="off">
+        <button type="button" class="btn-quiet danger" id="history-clear">Delete all</button>
+      </div>
+      <p class="history-count" id="history-count" role="status" hidden></p>
     </div>
-    <ol class="ledger" id="ledger"></ol>
+    <ol class="ledger" id="ledger" aria-label="Your turns, newest first"></ol>
     <p class="empty" id="history-empty">No turns yet. Dictate one and it lands here.</p>
   </section>
 

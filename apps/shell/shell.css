@@ -546,8 +546,67 @@ body {
 /* ───────────────────────── History ledger ─────────────────────────
    A ledger with hairline rules and a flag-coloured rail, not a card grid:
    these are entries in a log, and they read as one continuous record. */
+/* Three numbers, stated not celebrated. They are a record of what you have
+   done, in the same tabular mono as every other measurement on the page. */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 14px 0 4px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.stats[hidden] { display: none; }
+.stats div { display: flex; align-items: baseline; gap: 7px; }
+.stats strong {
+  font: 600 17px var(--sans);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.stats span { font: 500 11.5px var(--mono); color: var(--ink-faint); }
+
+.history-tools { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.history-tools[hidden] { display: none; }
+.search {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  font: 500 13.5px var(--sans);
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+.search::placeholder { color: var(--ink-ghost); }
+.search:hover { border-color: var(--ink-ghost); }
+.history-count { margin: 10px 0 0; font: 500 12.5px var(--mono); color: var(--ink-faint); }
+.history-count[hidden] { display: none; }
+
 .ledger { list-style: none; margin: 0; padding: 0; }
-.ledger li {
+
+/* The day a group of turns belongs to, on a rule that runs to the edge. */
+.day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 2px;
+  font: 500 11.5px var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+.day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-soft);
+}
+.ledger .day:first-child { margin-top: 4px; }
+
+.entry {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 14px;
@@ -555,16 +614,28 @@ body {
   border-top: 1px solid var(--line-soft);
   border-left: 2px solid var(--line);
 }
-.ledger li:last-child { border-bottom: 1px solid var(--line-soft); }
-.ledger li[data-lead="yelling"] { border-left-color: var(--flag-red); }
-.ledger li[data-lead="urgency"] { border-left-color: var(--hot); }
-.ledger li[data-lead="emphasis"] { border-left-color: var(--hot-bright); }
-.ledger li[data-lead="hesitation"] { border-left-color: var(--flag-violet); }
-.ledger li[data-lead="confusion"], .ledger li[data-lead="uncertainty"] { border-left-color: var(--flag-blue); }
-.ledger li[data-lead="tension"] { border-left-color: var(--flag-amber); }
+.entry:first-child { border-top: 0; }
+.day + .entry { border-top: 0; }
+.entry[data-lead="yelling"] { border-left-color: var(--flag-red); }
+.entry[data-lead="urgency"] { border-left-color: var(--hot); }
+.entry[data-lead="emphasis"] { border-left-color: var(--hot-bright); }
+.entry[data-lead="hesitation"] { border-left-color: var(--flag-violet); }
+.entry[data-lead="confusion"], .entry[data-lead="uncertainty"] { border-left-color: var(--flag-blue); }
+.entry[data-lead="tension"] { border-left-color: var(--flag-amber); }
+.entry:hover, .entry:focus-within { background: rgba(255, 255, 255, 0.017); }
+.entry:focus-visible { outline: 2px solid var(--cool-bright); outline-offset: -2px; }
+
+.entry-failed {
+  grid-column: 2;
+  justify-self: end;
+  font: 500 11px var(--mono);
+  color: var(--flag-amber);
+}
+.entry[data-failed="true"] { border-left-style: dashed; }
 
 .entry-text {
   grid-column: 1;
+  margin: 0;
   font-family: var(--serif);
   font-size: 17px;
   line-height: 1.4;
@@ -579,10 +650,37 @@ body {
   text-align: right;
   white-space: nowrap;
 }
-.entry-readout { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.entry-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 6px;
+}
+.entry-readout { display: flex; flex-wrap: wrap; gap: 6px; }
 .entry-readout .chip { font-size: 11.5px; padding: 3px 8px; }
-.entry-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 10px; }
+
+/* Actions arrive on hover or focus and are gone otherwise, so a long log reads
+   as a record rather than a wall of buttons. They are never hidden from the
+   keyboard: focus anywhere in the row brings them back, and on a touch screen,
+   where there is no hover to reveal them, they are simply always there. */
+.entry-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease);
+}
+.entry:hover .entry-actions,
+.entry:focus-within .entry-actions,
+.entry:focus-visible .entry-actions { opacity: 1; }
+.entry[data-failed="true"] .entry-actions { opacity: 1; }
 .entry-actions .btn-quiet { padding: 5px 10px; font-size: 12.5px; }
+@media (hover: none) {
+  .entry-actions { opacity: 1; }
+}
 
 .empty { color: var(--ink-faint); font-size: 14px; font-style: italic; }
 .empty[hidden] { display: none; }

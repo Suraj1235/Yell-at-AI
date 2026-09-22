@@ -399,6 +399,16 @@ async function boot() {
     for (const listener of turnListeners) listener(turn);
 
     const result = await platform.insert(block);
+    // Whether the handover worked is part of the record. A turn that never
+    // reached the clipboard is marked as such in history and offers to try
+    // again, rather than looking identical to one that landed.
+    turn.delivered = result.ok;
+    try {
+      await store.putTurn(turn);
+    } catch (error) {
+      console.warn("history update failed", error);
+    }
+
     // The label names what actually happened to the words. On the web that is
     // the clipboard; the desktop adapter puts them into the focused app and
     // says "Inserted". Neither word is ever a euphemism for editing them.
