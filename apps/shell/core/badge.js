@@ -20,6 +20,28 @@
 
 import { ENGINES } from "./engine.js";
 
+// The sentence onboarding uses to say what you are not signing up for.
+//
+// It is derived here, from the same registry the badge reads, rather than
+// written into onboarding as a fixed string — because the strongest true
+// version of it depends on which engine is active, and a welcome screen is
+// exactly where an over-claim would do the most damage. The shape stays the
+// same in every state: no account, no word limit, and then precisely what does
+// and does not leave this device.
+export function privacyLine({ canCapture, engine }) {
+  if (!canCapture || engine !== "webspeech") {
+    return (
+      "No account, no word limit, nothing to subscribe to. No audio is sent to anyone for " +
+      "recognition: you type the words, and the prosody is read here, on this device."
+    );
+  }
+  return (
+    "No account, no word limit, nothing to subscribe to. Prosody analysis runs here, on this " +
+    `device. On this engine the audio goes to ${ENGINES.webspeech.vendor} for the words alone — set the ` +
+    "engine to none in Settings and no audio is sent to anyone for recognition."
+  );
+}
+
 export function createBadge(root) {
   const badge = root.querySelector("#engine-badge");
   const title = root.querySelector("#engine-badge-title");

@@ -16,7 +16,9 @@ export const DEFAULTS = Object.freeze({
   mic: "",
   verbosity: "full",
   hotkey: "ctrl-alt-y",
-  live: "on"
+  live: "on",
+  pill: "always",
+  ping: "on"
 });
 
 export function createSettings({ root, store, platform, onChange, onRecalibrate }) {
@@ -27,6 +29,8 @@ export function createSettings({ root, store, platform, onChange, onRecalibrate 
   const verbosity = root.querySelector("#set-verbosity");
   const hotkey = root.querySelector("#set-hotkey");
   const live = root.querySelector("#set-live");
+  const pill = root.querySelector("#set-pill");
+  const ping = root.querySelector("#set-ping");
   const baselineNote = root.querySelector("#baseline-note");
   const recalibrate = root.querySelector("#recalibrate");
 
@@ -44,7 +48,9 @@ export function createSettings({ root, store, platform, onChange, onRecalibrate 
       mic: mic.value,
       verbosity: verbosity.value,
       hotkey: hotkey.value,
-      live: live.value
+      live: live.value,
+      pill: pill.value,
+      ping: ping.value
     });
     describeEngine();
     onChange?.(values);
@@ -71,6 +77,8 @@ export function createSettings({ root, store, platform, onChange, onRecalibrate 
     verbosity.value = values.verbosity;
     hotkey.value = values.hotkey;
     live.value = values.live;
+    pill.value = values.pill;
+    ping.value = values.ping;
     describeEngine();
 
     await loadDevices();

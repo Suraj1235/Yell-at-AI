@@ -23,3 +23,8 @@ export {
   mergeBaselines,
   isBaseline
 } from "../../web/vendor/calibration/baseline.js";
+
+// The same tokenizer the analyzer ran, so the word the card marks inside your
+// sentence is the word the engine measured — not a lookalike found by a second,
+// subtly different split.
+export { tokenizeWords } from "../../web/vendor/text/tokenize.js";

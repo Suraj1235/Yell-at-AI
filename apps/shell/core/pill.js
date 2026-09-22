@@ -15,8 +15,8 @@ import { renderChips, chipsFromLive, chipsFromContract } from "./chips.js";
 const INSERTED_MS = 600;
 
 export function createPill({ root, machine, announce }) {
+  const layer = root.querySelector("#pill-layer");
   const pill = root.querySelector("#pill");
-  const lamp = root.querySelector(".pill-lamp");
   const message = root.querySelector("#pill-msg");
   const elapsed = root.querySelector("#pill-elapsed");
   const scope = root.querySelector("#pill-scope");
@@ -37,9 +37,13 @@ export function createPill({ root, machine, announce }) {
     window.clearTimeout(insertedTimer);
     pill.dataset.state = state;
     document.body.dataset.state = state;
+    if (state !== "listening") setWarning(null);
 
     if (state === "listening") {
-      message.textContent = "Listening";
+      // The stage vocabulary is fixed and it is ours. "Listening…" is what the
+      // microphone is doing; "Reading delivery…" is what the analyser is doing.
+      // Neither of them is "cleaning up", because nothing here edits a word.
+      message.textContent = "Listening…";
       hitLabel.textContent = "Stop dictating";
       renderChips(chips, []);
       waveform.clear();
@@ -50,13 +54,15 @@ export function createPill({ root, machine, announce }) {
       return;
     }
 
+    setHandsFree(false);
+    pill.style.removeProperty("--live-tint");
     stopTimer();
     waveform.stop();
 
     if (state === "thinking") {
-      message.textContent = "Reading the delivery";
-      hitLabel.textContent = "Reading the delivery";
-      announce?.("Reading the delivery.");
+      message.textContent = "Reading delivery…";
+      hitLabel.textContent = "Reading delivery";
+      announce?.("Reading delivery.");
     } else if (state === "inserted") {
       message.textContent = detail?.message || "Copied";
       hitLabel.textContent = idleHint;
@@ -87,6 +93,26 @@ export function createPill({ root, machine, announce }) {
     timer = 0;
   }
 
+  function setHandsFree(on) {
+    if (on) pill.dataset.mode = "hands-free";
+    else delete pill.dataset.mode;
+    if (on) hitLabel.textContent = "Stop dictating";
+  }
+
+  function setWarning(text) {
+    if (text) {
+      pill.dataset.warn = "true";
+      warn.textContent = text;
+      warn.hidden = false;
+    } else {
+      delete pill.dataset.warn;
+      warn.hidden = true;
+      warn.textContent = "";
+    }
+  }
+
+  const warn = root.querySelector("#pill-warn");
+
   return {
     element: pill,
     hit,
@@ -100,6 +126,16 @@ export function createPill({ root, machine, announce }) {
       }
     },
 
+    // "Only while active" hides the resting mark. The pill still exists, still
+    // takes focus, and still shows every state that is not idle — what goes
+    // away is the thing sitting on your screen when nothing is happening.
+    setVisibility(mode) {
+      layer.dataset.visibility = mode === "active" ? "active" : "always";
+    },
+
+    setHandsFree,
+    setWarning,
+
     // One arriving audio frame: draw it at the tint currently in force.
     pushAmplitude(amp) {
       waveform.push(amp);
@@ -108,8 +144,16 @@ export function createPill({ root, machine, announce }) {
     // The live reader moved. Tint is null when there is no baseline to be a
     // z-score against, in which case level alone drives the bar height and the
     // colour stays cool.
+    //
+    // The same number also warms the pill's own rim. The waveform is where the
+    // evidence is, but the rim is what you see out of the corner of your eye
+    // while you are looking at the thing you are dictating into — which is
+    // where you actually are.
     applyLive({ chips: live, tint }) {
-      if (tint != null) waveform.setTint(tint);
+      if (tint != null) {
+        waveform.setTint(tint);
+        pill.style.setProperty("--live-tint", tint.toFixed(3));
+      }
       renderChips(chips, chipsFromLive(live));
     },
 

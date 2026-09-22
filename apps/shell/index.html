@@ -59,31 +59,41 @@
       Hold <kbd class="key" id="hint-key">Ctrl</kbd><kbd class="key">Alt</kbd><kbd class="key">Y</kbd>
       and say it the way you mean it. Release to read it back.
     </p>
+    <p class="stage-hint" id="stage-hint">Double-tap the key, or click the pill, to keep going hands-free. Escape cancels.</p>
 
-    <article class="turn" id="turn" hidden aria-labelledby="turn-heading">
-      <h2 class="sr-only" id="turn-heading">Your last turn</h2>
+    <!--
+      The evidence card. Your sentence, with the word you leaned on marked
+      inside it and its z-score sitting on the word; the chips with their
+      numbers; one line of what your assistant is being told; what the reading
+      was measured against; and the raw block one click away.
+    -->
+    <article class="evidence" id="turn" hidden aria-labelledby="turn-heading">
+      <h2 class="sr-only" id="turn-heading">Your last turn, and the evidence beside it</h2>
       <blockquote class="turn-text" id="turn-text"></blockquote>
       <div class="readout" id="turn-readout"></div>
+      <p class="guidance" id="turn-guidance"></p>
       <dl class="delivery" id="turn-delivery"></dl>
+      <dl class="provenance" id="turn-provenance"></dl>
 
-      <div class="block">
-        <div class="block-head">
-          <span class="legend">vocal-context block</span>
-          <button type="button" class="btn-quiet" id="copy-block">
-            <span class="copy-mark" aria-hidden="true"></span><span id="copy-block-label">Copy</span>
-          </button>
-        </div>
-        <pre class="block-pre" id="turn-block"></pre>
+      <div class="evidence-actions">
+        <button type="button" class="btn" id="copy-block">
+          <span class="copy-mark" aria-hidden="true"></span><span id="copy-block-label">Copy block</span>
+        </button>
+        <button type="button" class="btn-quiet" id="toggle-block" aria-expanded="false" aria-controls="turn-block">
+          Show the raw block
+        </button>
       </div>
+      <pre class="block-pre" id="turn-block" hidden></pre>
     </article>
 
     <section class="specimen" id="specimen" aria-labelledby="specimen-caption">
       <p class="specimen-caption" id="specimen-caption">An example of a finished read, so you know the shape of it</p>
-      <blockquote class="turn-text">make the whole thing simpler</blockquote>
+      <blockquote class="turn-text">make the <mark class="stress" style="--z:0.26"><span class="stress-word">whole</span><span class="stress-z">z 1.23</span></mark> thing simpler</blockquote>
       <div class="readout">
-        <span class="chip chip-emphasis"><span class="chip-type">emphasis</span><span class="chip-word">&ldquo;whole&rdquo;</span><span class="chip-num">z 1.23</span></span>
+        <span class="chip chip-emphasis"><span class="chip-type">emphasis</span><span class="chip-word">&ldquo;whole&rdquo;</span><span class="chip-num">z 1.23</span><span class="chip-num">conf 0.62</span></span>
         <span class="chip chip-urgency"><span class="chip-type">urgency</span><span class="chip-num">conf 0.71</span></span>
       </div>
+      <p class="guidance"><span class="guidance-label">your assistant is told</span>Preserve stressed words as likely constraints or priorities: whole.</p>
     </section>
 
     <form class="type-fallback" id="type-fallback" hidden>
@@ -101,9 +111,15 @@
     <div class="view-head">
       <h2 id="history-heading">History</h2>
       <p class="view-sub">The last 100 turns, stored in this browser only. Nothing is synced anywhere.</p>
-      <button type="button" class="btn-quiet danger" id="history-clear">Delete all</button>
+      <div class="stats" id="history-stats" hidden></div>
+      <div class="history-tools">
+        <label class="sr-only" for="history-search">Search your turns</label>
+        <input type="search" id="history-search" class="search" placeholder="Search your words, or a flag like “urgency”" autocomplete="off">
+        <button type="button" class="btn-quiet danger" id="history-clear">Delete all</button>
+      </div>
+      <p class="history-count" id="history-count" role="status" hidden></p>
     </div>
-    <ol class="ledger" id="ledger"></ol>
+    <ol class="ledger" id="ledger" aria-label="Your turns, newest first"></ol>
     <p class="empty" id="history-empty">No turns yet. Dictate one and it lands here.</p>
   </section>
 
@@ -112,6 +128,7 @@
     <div class="view-head">
       <h2 id="settings-heading">Settings</h2>
       <p class="view-sub">Everything here is stored on this device.</p>
+      <p class="view-note">Your words go through verbatim. We add evidence next to them and we never rewrite them — there is no setting for that, because there is no rewriting to turn off.</p>
     </div>
 
     <form class="settings" id="settings-form">
@@ -143,6 +160,24 @@
       </div>
 
       <div class="field">
+        <label for="set-pill">Pill visibility</label>
+        <select id="set-pill" name="pill">
+          <option value="always">Always — a resting mark sits at the bottom edge</option>
+          <option value="active">Only while active — it appears when you speak</option>
+        </select>
+        <p class="field-note">The key works either way. Hidden, the pill still comes back for every state that isn't idle, and for keyboard focus.</p>
+      </div>
+
+      <div class="field">
+        <label for="set-ping">Start cue</label>
+        <select id="set-ping" name="ping">
+          <option value="on">On — a short, quiet tone when recording starts</option>
+          <option value="off">Off — silent</option>
+        </select>
+        <p class="field-note">Silent anyway when your system asks for reduced motion.</p>
+      </div>
+
+      <div class="field">
         <label for="set-live">Live read while you speak</label>
         <select id="set-live" name="live">
           <option value="on">On — provisional chips appear as you speak</option>
@@ -166,7 +201,7 @@
   and depend on nothing in the page around them, so a frameless Tauri overlay
   window can host this same markup unchanged.
 -->
-<div class="pill-layer" id="pill-layer">
+<div class="pill-layer" id="pill-layer" data-visibility="always">
   <div class="pill" id="pill" data-state="idle" role="group" aria-label="Dictation">
     <span class="pill-lamp" aria-hidden="true"></span>
     <canvas class="pill-scope" id="pill-scope" width="560" height="96" aria-hidden="true"></canvas>
@@ -177,7 +212,14 @@
     </button>
   </div>
   <div class="pill-chips" id="pill-chips" aria-hidden="true"></div>
-  <p class="sr-only" id="pill-help">Press and hold to dictate, or press once to keep recording until you press again. Escape cancels.</p>
+  <p class="pill-warn" id="pill-warn" role="status" hidden></p>
+  <!-- Not a live region itself: the shared announcer speaks the message, and
+       two live regions carrying the same sentence get read twice. -->
+  <div class="toast" id="toast" hidden>
+    <span class="toast-text" id="toast-text"></span>
+    <span class="toast-actions" id="toast-actions"></span>
+  </div>
+  <p class="sr-only" id="pill-help">Press and hold to dictate. Double-tap the key, or click the pill, to keep recording hands-free until you press again. Escape cancels.</p>
 </div>
 
 <!-- ─────────────── Onboarding ─────────────── -->
@@ -192,12 +234,16 @@
 
     <h2 class="onboard-title" id="onboard-title"></h2>
     <p class="onboard-body" id="onboard-body"></p>
+    <p class="onboard-claim" id="onboard-claim" hidden></p>
     <div class="onboard-slot" id="onboard-slot"></div>
     <p class="onboard-status mono" id="onboard-status" role="status"></p>
 
     <div class="onboard-actions">
       <button type="button" class="btn-quiet" id="onboard-skip">Skip setup</button>
-      <button type="button" class="btn" id="onboard-next">Continue</button>
+      <span class="onboard-right">
+        <button type="button" class="btn-quiet" id="onboard-skip-step">Skip this step</button>
+        <button type="button" class="btn" id="onboard-next">Continue</button>
+      </span>
     </div>
   </div>
 </div>
