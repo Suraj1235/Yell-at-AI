@@ -25,34 +25,22 @@ The manifest is [eval/external/emotion-cases.json](../eval/external/emotion-case
 
 ## What The Benchmark Tests
 
-Subtext's value prop is helping AI understand what you mean and the emotion of your natural speech, not just plain transcript text. This benchmark maps known acted labels to expected prosodic evidence and affect cues:
+Each acted clip is scored only on what the assistant receives: the contract's `affect.emotional_coloring` and `flags`. One rule per label: angry must read aroused and not subdued; fearful aroused or uncertain; happy aroused or neutral, never subdued or uncertain; sad subdued or hesitant, never aroused; neutral must read neutral with no steering flag. The rules and the per-label confusion table are in [eval/external/README.md](../eval/external/README.md) and [eval/external/BASELINE.md](../eval/external/BASELINE.md).
 
-- angry/fearful/happy: arousal cues such as high energy, fast rate, wide pitch range, urgency, or tension
-- sad: subdued cues such as low energy, slow rate, high pauses, or narrow pitch range
-- neutral: clear delivery with no strong urgency/tension/hesitation/yelling flags
-
-This intentionally tests a weaker and safer claim than "emotion detection": whether the vocal evidence is directionally compatible with known labels.
+This intentionally tests a weaker and safer claim than "emotion detection": whether what the assistant is told is directionally compatible with known labels.
 
 ## Latest Local Result
 
-After tightening neutral expectations, the benchmark should be treated as a flaw-finder. The checked-in current baseline is [eval/external/BASELINE.md](../eval/external/BASELINE.md).
+- 19/25 in-sample; held out by corpus (cutoffs refit on the other two corpora), 20/25
+- angry 5/6, neutral 4/5, sad 4/6, fearful 2/3, happy 4/5
+- before the gain-invariant engine change: 8/25 on the same contract-only scoring (the old 21/25 counted harness-side signals the assistant never saw)
 
-Latest local baseline:
+What model-free DSP does and does not separate here:
 
-- 25 web audio clips
-- 3 sources
-- 5 known labels
-- 21/25 matched expected broad prosody evidence
-- 4/25 exposed flaws
-
-Observed M0 weaknesses from the current corpus:
-
-- One CREMA-D happy clip is read as subdued under utterance-only global thresholds.
-- At least one Berlin EmoDB sad clip is not read as subdued under global, speaker-agnostic thresholds.
-- Same-speaker calibration helps a Berlin EmoDB sad case, but does not rescue every angry/neutral case.
-- One calibrated Berlin EmoDB neutral case still false-flags tension because pitch/voice-quality proxies are too brittle on that clip.
-- Happy, angry, and fearful often collapse into a shared "aroused" evidence family; M0 does not reliably separate positive vs negative valence.
-- Speaker or corpus baselines are needed before any stronger label-level claim can be made.
+- Arousal separates: acted anger reaches the assistant as tense or high-intensity; neutral stays neutral.
+- Happy does not separate from neutral (4 of 5 happy clips read neutral); valence is not conveyed.
+- Fear is inconsistent, and two quiet, noisy CREMA-D sad takes cannot be measured reliably.
+- One calibrated Berlin EmoDB neutral case still false-flags tension from voice-quality proxies.
 
 ## Dataset Boundary
 
