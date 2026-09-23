@@ -178,6 +178,18 @@ test("personal baseline normalizes naturally expressive pitch range", async () =
   assert.ok(!calibrated.flags.some((flag) => ["tension", "yelling"].includes(flag.type)));
 });
 
+test("personal baseline records vocal effort, and baselines saved without it stay valid", async () => {
+  const baseline = await buildBaselineFromFiles([{ audioPath: fixtures.neutral.audio, text: fixtures.neutral.text }]);
+  assert.equal(typeof baseline.alphaRatio?.mean, "number");
+
+  const { alphaRatio, ...legacy } = baseline;
+  assert.equal(alphaRatio.mean < 0, true);
+  const contract = await analyzeFile(fixtures.yelling.audio, fixtures.yelling.text, { baseline: legacy });
+  assert.equal(contract.calibration.baseline, "personal");
+  assert.equal(mergeBaselines(legacy, baseline).alphaRatio, undefined);
+  assert.equal(typeof mergeBaselines(baseline, baseline).alphaRatio.mean, "number");
+});
+
 test("rolling baseline merge preserves sample counts and pooled signal spread", async () => {
   const loudFast = await buildBaselineFromFiles([{ audioPath: fixtures.urgency.audio, text: fixtures.urgency.text }]);
   const pausy = await buildBaselineFromFiles([{ audioPath: fixtures.pausyNeutral.audio, text: fixtures.pausyNeutral.text }]);

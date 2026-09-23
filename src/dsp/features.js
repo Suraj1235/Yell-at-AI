@@ -1,6 +1,37 @@
 import { estimatePitch } from "./pitch.js";
-import { computeMelLogEnergy } from "./mel.js";
+import { computeSpectralFeatures } from "./mel.js";
 import { mean, median, quantile, round, semitoneDelta } from "./stats.js";
+
+// Speech/silence gating. Every level here is RELATIVE to the clip itself, so
+// the same utterance recorded 12 dB hotter or quieter gets the same speech mask,
+// the same pitched frames and therefore the same contract. The previous gate
+// clamped the floor into an absolute 0.004-0.025 RMS window: a quiet recording
+// (every CREMA-D clip; a laptop mic with browser AGC off) then counted its room
+// noise as speech, and a hot one lost its quiet syllables.
+//
+// The floor sits a fixed margin above the noise estimate (the 10th-percentile
+// frame), clamped into a window measured down from the loud speech frames
+// (the 95th percentile). That is the old absolute window re-expressed in dB
+// relative to the talker, which is what it was approximating.
+const GATE = {
+  // A frame at or below this RMS is digital silence (exact zeros, sub-LSB
+  // dither). It is the one absolute level in the engine, and it decides nothing
+  // except "is there any signal in this frame at all".
+  digitalSilenceRms: 1e-7,
+  noiseQuantile: 0.1,
+  speechQuantile: 0.95,
+  // 6 dB above the noise estimate: twice its RMS, enough to reject steady room
+  // noise without eating the start of a word.
+  noiseMarginDb: 6,
+  // Never gate higher than 15 dB under the loud frames: in a noisy room
+  // (MIT OCW discussion audio, noise ~21 dB under speech) this keeps real pauses
+  // visible, and 15 dB still passes the weaker syllables of normal speech.
+  maxFloorBelowSpeechDb: 15,
+  // Never gate lower than 30 dB under the loud frames: in near-silent studio
+  // recordings (RAVDESS, noise 50-100 dB down) breaths and hiss must not count
+  // as speech time and drag the speaking rate down.
+  minFloorBelowSpeechDb: 30
+};
 
 export function extractProsody(samples, sampleRate, options = {}) {
   const frameMs = options.frameMs ?? 30;
@@ -26,15 +57,23 @@ export function extractProsody(samples, sampleRate, options = {}) {
       endSec: Math.min(samples.length, start + frameSize) / sampleRate,
       centerSec: (start + frame.length / 2) / sampleRate,
       rms,
-      melLogEnergy: computeMelLogEnergy(frame, sampleRate, options.mel),
+      ...computeSpectralFeatures(frame, sampleRate, options.mel),
       db: 20 * Math.log10(Math.max(1e-6, rms)),
       zcr
     };
   });
 
   const rmsValues = rawFrames.map((frame) => frame.rms);
-  const nonZeroRms = rmsValues.filter((value) => value > 1e-5);
-  const adaptiveFloor = Math.max(0.004, Math.min(0.025, quantile(nonZeroRms, 0.1) * 0.45));
+  const nonZeroRms = rmsValues.filter((value) => value > GATE.digitalSilenceRms);
+  const speechLevel = quantile(nonZeroRms, GATE.speechQuantile);
+  const adaptiveFloor = Math.max(
+    GATE.digitalSilenceRms,
+    clampValue(
+      quantile(nonZeroRms, GATE.noiseQuantile) * dbToRatio(GATE.noiseMarginDb),
+      speechLevel * dbToRatio(-(options.minFloorBelowSpeechDb ?? GATE.minFloorBelowSpeechDb)),
+      speechLevel * dbToRatio(-(options.maxFloorBelowSpeechDb ?? GATE.maxFloorBelowSpeechDb))
+    )
+  );
   const energyFloor = options.energyFloor ?? adaptiveFloor;
   const rawSpeechMask = rawFrames.map((frame) => frame.rms >= energyFloor);
   const speechMask = smoothSpeechMask(rawSpeechMask, {
@@ -78,6 +117,13 @@ export function extractProsody(samples, sampleRate, options = {}) {
   const pitchP10 = quantile(voicedF0, 0.1);
   const pitchP90 = quantile(voicedF0, 0.9);
   const pitchRangeSemitones = pitchP10 > 0 && pitchP90 > 0 ? semitoneDelta(pitchP90, pitchP10) : 0;
+  // Level-independent loudness measures. These are ratios of the clip to
+  // itself, so they are unchanged by microphone gain.
+  const voicedAlpha = reliableVoicedFrames.map((frame) => frame.alphaRatioDb).filter(Number.isFinite);
+  const speechMeanRms = mean(voicedRms);
+  const energyPeakToMean = speechMeanRms > 0 ? Math.max(0, ...voicedRms) / speechMeanRms : 0;
+  const speechP10 = quantile(voicedRms, 0.1);
+  const energyContrastDb = speechP10 > 0 ? 20 * Math.log10(quantile(voicedRms, 0.9) / speechP10) : 0;
 
   const summary = {
     durationSec: round(durationSec),
@@ -91,6 +137,9 @@ export function extractProsody(samples, sampleRate, options = {}) {
     energyMean: round(mean(voicedRms), 5),
     energyMedian: round(median(voicedRms), 5),
     energyPeak: round(Math.max(0, ...rmsValues), 5),
+    energyPeakToMean: round(energyPeakToMean, 3),
+    energyContrastDb: round(energyContrastDb, 2),
+    alphaRatioDb: voicedAlpha.length ? round(median(voicedAlpha), 2) : null,
     pauseDensity: round(1 - activeFrames.length / Math.max(1, activeWindowFrames.length), 4),
     f0Median: round(median(voicedF0), 2),
     f0P10: round(pitchP10, 2),
@@ -107,6 +156,14 @@ export function extractProsody(samples, sampleRate, options = {}) {
     frames,
     summary
   };
+}
+
+function dbToRatio(db) {
+  return 10 ** (db / 20);
+}
+
+function clampValue(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function smoothSpeechMask(mask, options) {
