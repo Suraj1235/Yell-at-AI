@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { analyzeFile, extractProsody, readWavFile } from "../src/index.js";
+import { analyzeFile } from "../src/index.js";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const manifestPath = join(root, "eval", "wild", "youtube-cases.json");
@@ -17,19 +17,38 @@ const downloadOnly = Boolean(args["download-only"]);
 const allowUnavailable = Boolean(args["allow-unavailable"]);
 const ytdlpExtraArgs = parseExtraArgs(args["yt-dlp-args"] ?? process.env.SUBTEXT_YTDLP_ARGS ?? "");
 
+// Pass criteria may only use what the assistant receives: the contract's
+// affect.emotional_coloring, its flags, and its assistant_guidance.priority.
+// (An earlier version also passed on harness-derived signals: "question_text"
+// was read off the transcript, and "aroused"/"delivery_clear" off raw prosody
+// categories, so a clip could pass while the contract told the assistant
+// something else.)
+const STEERING_FLAGS = new Set(["yelling", "urgency", "tension", "hesitation", "confusion", "uncertainty"]);
+const AROUSED_COLORINGS = new Set(["high_intensity", "urgent", "tense"]);
+const AROUSED_FLAGS = new Set(["yelling", "urgency", "tension"]);
+const UNCERTAIN_COLORINGS = new Set(["uncertain", "hesitant"]);
+const UNCERTAIN_FLAGS = new Set(["hesitation", "confusion", "uncertainty"]);
+// "Clear delivery": the assistant is told to use the transcript normally, or
+// only to preserve stressed words.
+const CLEAR_PRIORITIES = new Set(["normal", "preserve_emphasis"]);
+const CONTRACT_SIGNAL_PATTERN = /^(coloring_[a-z_]+|flag_[a-z_]+|priority_[a-z_]+|delivery_clear|reads_aroused|reads_uncertain)$/;
+
 await mkdir(cacheDir, { recursive: true });
 await mkdir(captionsDir, { recursive: true });
 await mkdir(outDir, { recursive: true });
 
 const cases = filterCases(JSON.parse(await readFile(manifestPath, "utf8")), args);
+validateManifest(cases);
 assert.ok(cases.length > 0, "No wild YouTube cases matched the requested filter.");
-const ffmpegPath = await locateFfmpeg();
+// ffmpeg and yt-dlp are only needed to fetch a clip that is not cached yet, so a
+// fully cached run (the normal case after one download) needs neither.
+let ffmpegPath = null;
 const results = [];
 
 for (const testCase of cases) {
   process.stderr.write(`wild eval: ${testCase.id}\n`);
   try {
-    const audioPath = await ensureYoutubeSegment(testCase, ffmpegPath);
+    const audioPath = await ensureYoutubeSegment(testCase);
     const transcript = testCase.transcript ?? await ensureYoutubeTranscript(testCase);
 
     if (downloadOnly) {
@@ -38,9 +57,7 @@ for (const testCase of cases) {
     }
 
     const contract = await analyzeFile(audioPath, transcript);
-    const wav = await readWavFile(audioPath);
-    const prosodySummary = extractProsody(wav.samples, wav.sampleRate).summary;
-    const signals = collectSignals(contract, prosodySummary, transcript);
+    const signals = contractSignals(contract);
     const matchedAny = (testCase.expectAny ?? []).filter((signal) => signals.includes(signal));
     const matchedAll = (testCase.expectAll ?? []).filter((signal) => signals.includes(signal));
     const forbiddenHits = (testCase.forbid ?? []).filter((signal) => signals.includes(signal));
@@ -57,7 +74,6 @@ for (const testCase of cases) {
       signals,
       transcript,
       contract,
-      prosodySummary,
       audioPath
     });
   } catch (error) {
@@ -101,8 +117,8 @@ const report = {
   minPassRate,
   caveat: "This is a wild YouTube speech assistant-handoff benchmark. It checks observable prosody/flag behavior, not emotion labels.",
   toolchain: {
-    ytdlp: (await run("yt-dlp", ["--version"])).stdout.trim(),
-    ffmpegPath,
+    ytdlp: (await runMaybe("yt-dlp", ["--version"])).stdout?.trim() || "not needed (all clips cached)",
+    ffmpegPath: ffmpegPath ?? "not needed (all clips cached)",
     extraYtdlpArgs: ytdlpExtraArgs
   },
   results
@@ -131,7 +147,7 @@ if (availableResults.length === 0) {
   process.exitCode = 1;
 }
 
-async function ensureYoutubeSegment(testCase, ffmpeg) {
+async function ensureYoutubeSegment(testCase) {
   assert.ok(testCase.sourceUrl, `${testCase.id} requires sourceUrl`);
   assert.equal(typeof testCase.startSec, "number", `${testCase.id} requires startSec`);
   assert.equal(typeof testCase.endSec, "number", `${testCase.id} requires endSec`);
@@ -140,6 +156,8 @@ async function ensureYoutubeSegment(testCase, ffmpeg) {
   const target = join(cacheDir, `${testCase.id}-${segmentKey(testCase)}.wav`);
   if (await exists(target)) return target;
 
+  ffmpegPath ??= await locateFfmpeg();
+  const ffmpeg = ffmpegPath;
   const section = `*${formatTimestamp(testCase.startSec)}-${formatTimestamp(testCase.endSec)}`;
   await run("yt-dlp", [
     "--quiet",
@@ -262,41 +280,27 @@ function cleanCaptionText(value) {
     .trim();
 }
 
-function collectSignals(contract, summary, transcript) {
-  const signals = new Set();
-  const { prosody } = contract;
-  signals.add(`energy_${prosody.energy}`);
-  signals.add(`rate_${prosody.rate}`);
-  signals.add(`pitch_${prosody.pitch_range}`);
-  signals.add(`pause_${prosody.pause_density}`);
-  signals.add(`terminal_${prosody.terminal_pitch}`);
-  signals.add(`voice_${prosody.voice_quality}`);
-
-  for (const flag of contract.flags) {
-    signals.add(`flag_${flag.type}`);
-  }
-
-  const steeringFlagTypes = new Set(["yelling", "urgency", "tension", "hesitation", "confusion", "uncertainty"]);
-  const hasSteeringFlag = contract.flags.some((flag) => steeringFlagTypes.has(flag.type));
-  const deliveryClear = !hasSteeringFlag && prosody.pause_density !== "high";
-  const questionText = /\?/.test(transcript) || /\bquestions?\b/i.test(transcript);
-  const aroused = prosody.energy === "high"
-    || prosody.rate === "fast"
-    || prosody.pitch_range === "wide"
-    || contract.flags.some((flag) => ["urgency", "tension"].includes(flag.type));
-  const subdued = prosody.energy === "low"
-    || prosody.rate === "slow"
-    || prosody.pause_density === "high"
-    || prosody.pitch_range === "narrow";
-
-  if (deliveryClear) signals.add("delivery_clear");
-  if (questionText) signals.add("question_text");
-  if (aroused) signals.add("aroused");
-  if (subdued) signals.add("subdued");
-  if (summary.pitchConfidenceMean < 0.55) signals.add("low_pitch_confidence");
-  if (summary.reliableVoicedFrameCount < summary.voicedFrameCount * 0.6) signals.add("pitch_outlier_heavy");
-
+function contractSignals(contract) {
+  const coloring = contract.affect.emotional_coloring;
+  const flagTypes = contract.flags.map((flag) => flag.type);
+  const priority = contract.assistant_guidance.priority;
+  const signals = new Set([
+    `coloring_${coloring}`,
+    `priority_${priority}`,
+    ...flagTypes.map((type) => `flag_${type}`)
+  ]);
+  if (!flagTypes.some((type) => STEERING_FLAGS.has(type)) && CLEAR_PRIORITIES.has(priority)) signals.add("delivery_clear");
+  if (AROUSED_COLORINGS.has(coloring) || flagTypes.some((type) => AROUSED_FLAGS.has(type))) signals.add("reads_aroused");
+  if (UNCERTAIN_COLORINGS.has(coloring) || flagTypes.some((type) => UNCERTAIN_FLAGS.has(type))) signals.add("reads_uncertain");
   return [...signals].sort();
+}
+
+function validateManifest(allCases) {
+  for (const testCase of allCases) {
+    for (const signal of [...(testCase.expectAny ?? []), ...(testCase.expectAll ?? []), ...(testCase.forbid ?? [])]) {
+      assert.ok(CONTRACT_SIGNAL_PATTERN.test(signal), `${testCase.id}: "${signal}" is not a contract signal. Score on coloring/flags/priority only.`);
+    }
+  }
 }
 
 function renderMarkdown(report) {
@@ -306,10 +310,8 @@ function renderMarkdown(report) {
     result.source,
     result.genre,
     `${formatTimestamp(result.startSec)}-${formatTimestamp(result.endSec)}`,
-    result.contract?.prosody?.energy ?? "-",
-    result.contract?.prosody?.rate ?? "-",
-    result.contract?.prosody?.pitch_range ?? "-",
-    result.contract?.prosody?.pause_density ?? "-",
+    result.contract?.affect?.emotional_coloring ?? "-",
+    result.contract?.assistant_guidance?.priority ?? "-",
     result.contract?.flags?.map((flag) => flag.type).join(", ") || "none",
     result.unavailable ? truncate(result.error, 120) : result.matchedAny.join(", ") || result.matchedAll.join(", ") || "none",
     result.forbiddenHits.join(", ") || "none"
@@ -326,8 +328,8 @@ function renderMarkdown(report) {
     "",
     `Toolchain: yt-dlp ${report.toolchain.ytdlp}; ffmpeg ${report.toolchain.ffmpegPath}`,
     "",
-    "| Result | Case | Source | Genre | Segment | Energy | Rate | Pitch Range | Pause Density | Flags | Matched Evidence | Forbidden Hits |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Result | Case | Source | Genre | Segment | Coloring | Priority | Flags | Matched | Forbidden Hits |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ...rows.map((row) => `| ${row.map(escapeCell).join(" | ")} |`),
     "",
     "## Flaws To Inspect",
@@ -505,6 +507,7 @@ function run(command, args) {
     const stderr = [];
     child.stdout.on("data", (chunk) => stdout.push(chunk));
     child.stderr.on("data", (chunk) => stderr.push(chunk));
+    child.on("error", reject); // e.g. ENOENT when yt-dlp is not installed
     child.on("exit", (code) => {
       const stdoutText = Buffer.concat(stdout).toString("utf8");
       const stderrText = Buffer.concat(stderr).toString("utf8");

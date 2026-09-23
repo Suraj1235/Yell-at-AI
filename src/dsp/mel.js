@@ -2,7 +2,24 @@ const TWO_PI = 2 * Math.PI;
 const filterbankCache = new Map();
 const windowCache = new Map();
 
+// Alpha ratio bands (Hz). The alpha ratio is the energy in 1-5 kHz over the
+// energy in 50 Hz-1 kHz, in dB: the eGeMAPS spectral-balance feature. Raised
+// vocal effort (anger, shouting, excitement) flattens the glottal source
+// spectrum and pushes energy into the upper band; low-arousal speech (sadness,
+// flat or tired delivery) is dominated by the fundamental and first harmonics.
+// Because it is a ratio of two energies in the same frame it does not move when
+// the microphone gain does, which is why the uncalibrated reading is built on it
+// instead of absolute RMS.
+const ALPHA_LOW_BAND_HZ = [50, 1000];
+const ALPHA_HIGH_BAND_HZ = [1000, 5000];
+
 export function computeMelLogEnergy(frame, sampleRate, options = {}) {
+  return computeSpectralFeatures(frame, sampleRate, options).melLogEnergy;
+}
+
+// One FFT per frame yields both the mel log energy (word emphasis) and the
+// alpha ratio (vocal effort).
+export function computeSpectralFeatures(frame, sampleRate, options = {}) {
   const fftSize = nextPowerOfTwo(Math.max(64, frame.length));
   const filters = getMelFilterbank({
     sampleRate,
@@ -22,7 +39,21 @@ export function computeMelLogEnergy(frame, sampleRate, options = {}) {
     normSquared += bandEnergy ** 2;
   }
 
-  return Math.log(Math.sqrt(normSquared) + 1e-12);
+  const binHz = sampleRate / fftSize;
+  let low = 0;
+  let high = 0;
+  for (let bin = 0; bin < power.length; bin += 1) {
+    const hz = bin * binHz;
+    if (hz >= ALPHA_LOW_BAND_HZ[0] && hz < ALPHA_LOW_BAND_HZ[1]) low += power[bin];
+    else if (hz >= ALPHA_HIGH_BAND_HZ[0] && hz < ALPHA_HIGH_BAND_HZ[1]) high += power[bin];
+  }
+
+  return {
+    melLogEnergy: Math.log(Math.sqrt(normSquared) + 1e-12),
+    // null, not a number, when either band is empty (digital silence), so a
+    // silent frame can never be read as extreme effort or extreme flatness.
+    alphaRatioDb: low > 0 && high > 0 ? 10 * Math.log10(high / low) : null
+  };
 }
 
 function powerSpectrum(frame, fftSize) {

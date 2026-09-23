@@ -8,6 +8,7 @@ import {
   resolveWhisperBinary,
   resolveWhisperModel,
   buildWhisperArgs,
+  resolveWhisperThreads,
   parseWhisperOutput,
   WHISPER_NOT_FOUND_MESSAGE,
   WHISPER_SOURCE
@@ -309,6 +310,23 @@ test("buildWhisperArgs places the audio path last and requests JSON by default",
   const plain = buildWhisperArgs({ audio: "turn.wav", json: false });
   assert.ok(!plain.includes("--output-json"));
   assert.equal(plain[plain.length - 1], "turn.wav");
+});
+
+test("whisper runs on the machine's cores, capped, instead of whisper.cpp's fixed 4", () => {
+  assert.equal(resolveWhisperThreads({}, 8), 8);
+  assert.equal(resolveWhisperThreads({}, 2), 2);
+  assert.equal(resolveWhisperThreads({}, 32), 8);
+  assert.equal(resolveWhisperThreads({}, 0), 1);
+  assert.equal(resolveWhisperThreads({ SUBTEXT_WHISPER_THREADS: "3" }, 8), 3);
+  assert.equal(resolveWhisperThreads({ SUBTEXT_WHISPER_THREADS: "lots" }, 8), 8);
+
+  const args = buildWhisperArgs({ audio: "turn.wav", threads: 8 });
+  assert.deepEqual(args.slice(args.indexOf("-t"), args.indexOf("-t") + 2), ["-t", "8"]);
+  assert.equal(args.at(-1), "turn.wav");
+
+  const callerChoice = buildWhisperArgs({ audio: "turn.wav", threads: 8, extraArgs: ["--threads", "2"] });
+  assert.equal(callerChoice.filter((arg) => arg === "-t" || arg === "--threads").length, 1);
+  assert.ok(!buildWhisperArgs({ audio: "turn.wav" }).includes("-t"));
 });
 
 test("parseWhisperOutput throws on an empty transcript", () => {

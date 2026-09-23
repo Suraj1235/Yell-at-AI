@@ -7,6 +7,29 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureDir = join(root, "eval", "fixtures");
 const sampleRate = 16000;
 
+// Voice source spectra. Every fixture keeps its original first three harmonics
+// (1, 0.28, 0.08) and gains a tail of higher harmonics, k >= 4 up to 7 kHz, at
+// upperGain * (3/k)^tilt. Real voices have that tail, and how strong it is is
+// the physical signature of vocal effort: pushing the voice flattens the source
+// spectrum. The engine's uncalibrated energy reading is that spectral balance
+// (the alpha ratio), because absolute sample level is set by mic gain, not by
+// the speaker.
+//
+// Until this existed the yelling and urgency fixtures said "loud" only by having
+// bigger sample values (amplitude 0.2-0.48 against 0.1 for neutral), with no
+// harmonics above 1 kHz at all. That was exactly the absolute-level bug: turn
+// the mic down 4x and the "yelling" fixture became neutral. Their expected
+// results are unchanged; they now carry the cue that survives a gain change.
+// Measured alpha ratio: modal about -16 to -11 dB (medium effort), raised about
+// -4 dB, shouted about +1 to +3 dB, soft about -30 dB.
+const VOICES = {
+  modal: { upperGain: 0.3, tilt: 1.5 },
+  raised: { upperGain: 0.3, tilt: 0.5 },
+  shouted: { upperGain: 1, tilt: 1 },
+  soft: { upperGain: 0.05, tilt: 1.5 }
+};
+const MAX_HARMONIC_HZ = 7000;
+
 const cases = [
   {
     id: "neutral",
@@ -59,6 +82,7 @@ const cases = [
   {
     id: "urgency",
     text: "can we ship this now please",
+    voice: "raised",
     words: [
       word("can", 0.15, 185, 0.2, 0.01),
       word("we", 0.13, 190, 0.2, 0.01),
@@ -71,6 +95,7 @@ const cases = [
   {
     id: "yelling",
     text: "stop rewriting the whole auth module",
+    voice: "shouted",
     words: [
       word("stop", 0.18, 270, 0.42, 0.005),
       word("rewriting", 0.34, 255, 0.38, 0.005),
@@ -127,6 +152,7 @@ const cases = [
   {
     id: "mismatch",
     text: "yeah this is totally fine",
+    voice: "soft",
     words: [
       word("yeah", 0.34, 118, 0.055, 0.08),
       word("this", 0.3, 116, 0.05, 0.08),
@@ -160,22 +186,36 @@ function word(label, durationSec, f0Start, amp, pauseAfterSec = 0, f0End = f0Sta
 
 function synthesize(specs, fixture = {}) {
   const samples = [];
+  const voice = VOICES[fixture.voice ?? "modal"];
   let phase = 0;
   pushSilence(samples, fixture.leadingSilenceSec ?? 0);
   for (const spec of specs) {
     const voicedSamples = Math.round(spec.durationSec * sampleRate);
+    const weights = harmonicWeights(voice, Math.max(spec.f0Start, spec.f0End));
+    // Normalise so the tail never raises the peak above the original
+    // three-harmonic waveform's: amplitude still means what it meant.
+    const norm = weights.reduce((sum, weight) => sum + weight, 0) / (1 + 0.28 + 0.08);
     for (let i = 0; i < voicedSamples; i += 1) {
       const t = i / Math.max(1, voicedSamples - 1);
       const f0 = spec.f0Start + (spec.f0End - spec.f0Start) * t;
       const envelope = Math.min(1, i / 80, (voicedSamples - i) / 80);
-      const harmonic = Math.sin(phase) + 0.28 * Math.sin(phase * 2) + 0.08 * Math.sin(phase * 3);
-      samples.push(spec.amp * envelope * harmonic);
+      let harmonic = 0;
+      for (let k = 0; k < weights.length; k += 1) harmonic += weights[k] * Math.sin(phase * (k + 1));
+      samples.push((spec.amp * envelope * harmonic) / norm);
       phase += (2 * Math.PI * f0) / sampleRate;
     }
     pushSilence(samples, spec.pauseAfterSec);
   }
   pushSilence(samples, fixture.trailingSilenceSec ?? 0);
   return Float32Array.from(samples);
+}
+
+function harmonicWeights(voice, maxF0) {
+  const weights = [1, 0.28, 0.08];
+  for (let k = 4; k * maxF0 <= MAX_HARMONIC_HZ; k += 1) {
+    weights.push(voice.upperGain * (3 / k) ** voice.tilt);
+  }
+  return weights;
 }
 
 function pushSilence(samples, durationSec) {

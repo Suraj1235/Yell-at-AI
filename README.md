@@ -77,7 +77,7 @@ key); Subtext never does that on your behalf.
 | Signal | What M0 Extracts | Why It Helps |
 | --- | --- | --- |
 | Pitch / F0 | autocorrelation pitch, range, median, slope, terminal movement | emphasis, uncertainty, emotional contour |
-| Energy | frame-level RMS, peaks, and mel log-energy | stress, urgency, contrast |
+| Energy | frame-level RMS and mel log-energy (word stress); spectral balance, i.e. vocal effort, for the uncalibrated energy read | stress, urgency, contrast |
 | Pacing | speech duration and words per second | urgency or deliberation |
 | Pauses | adaptive speech/pause density | hesitation, planning, interruption |
 | Emphasis | word stress from five word-level prosody dimensions | what the user likely meant to highlight |
@@ -89,12 +89,12 @@ key); Subtext never does that on your behalf.
 
 | Evidence Flag | What It Means |
 | --- | --- |
-| `yelling` | very high energy plus elevated delivery |
+| `yelling` | extreme vocal effort (or, with a baseline, far louder than usual) plus elevated delivery |
 | `emphasis` | a word or phrase was strongly stressed |
 | `confusion` | confusion/question markers with hesitant or rising delivery |
 | `hesitation` | filled pauses or high pause density |
 | `uncertainty` | rising terminal pitch on non-question text |
-| `urgency` | fast, high-energy delivery with few pauses |
+| `urgency` | fast, high-effort delivery with few pauses |
 
 ## How it works
 
@@ -179,11 +179,11 @@ It needs only Node.js >= 20: no native compile step, no bundled model weights, n
 no default network egress. New here? Start with the [Quickstart](docs/QUICKSTART.md) for web, CLI, and
 the Claude Code / Codex / VS Code editor adapters.
 
-> **Tip — calibrate once for the best reads.** Uncalibrated analysis uses fixed thresholds that assume
-> a typical recording level, so a quiet mic or an unusually loud/soft speaker can be under- or
-> over-read. For the most reliable results across your microphone and speaking style, run
-> `yell-at-ai calibrate` once; Subtext then judges each turn relative to *your* baseline instead of
-> absolute thresholds. See [docs/CALIBRATION.md](docs/CALIBRATION.md).
+> **Tip — calibrate once for the best reads.** Uncalibrated analysis does not depend on your mic
+> level: it reads energy as vocal effort from the spectrum, so the same sentence reads the same at
+> 0.25x or 4x gain (a test enforces it). It still uses cross-speaker defaults, so a naturally bright,
+> fast or monotone speaker can be over- or under-read. Run `yell-at-ai calibrate` once and Subtext
+> judges each turn against *your* baseline instead. See [docs/CALIBRATION.md](docs/CALIBRATION.md).
 
 ## Status
 
@@ -304,9 +304,12 @@ Latest local verification:
 20/20 functional plugin-boundary tests passing
 p95 latency: 32.161 ms, budget: 300 ms
 package dry-run: 125 files
-external emotion evidence: opt-in, 21/25 (84%) on acted web clips
-wild YouTube speech: opt-in, 13/14 (93%) on the full 14-case manifest
-known weakness: the 1 wild miss is a false-positive uncertainty flag on a lecturer's rising terminal pitch
+external emotion (scored only on the contract's coloring + flags): opt-in, 19/25 on acted clips;
+  angry 5/6, neutral 4/5, sad 4/6, fearful 2/3, happy 4/5; held out by corpus 20/25
+known weakness: happy is not separated from neutral (4/5 happy clips read neutral); valence is not conveyed
+wild YouTube speech (contract-only criteria): opt-in, 11/14 on the full 14-case manifest
+known weakness: 2 wild misses are a text/tone "mismatch" steer on NASA press audio, 1 a false uncertainty flag on a lecturer's rising pitch
+gain invariance: identical contract at 0.25x/1x/4x amplitude on every fixture and acted clip
 desktop scaffold: Tauri/Rust scaffold check passing
 harness conformance: yelling/emphasis/confusion cues + 12 harness policies passing
 adapter doctor: 12/12 ready

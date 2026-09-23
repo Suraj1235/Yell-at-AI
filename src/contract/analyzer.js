@@ -10,25 +10,54 @@ const SCHEMA = "vocalcontext/v1";
 // Categorical thresholds for bucketing a speaker's rate/energy/pauses/pitch-range/
 // voice-quality, and for the yelling detector. Each metric has a baseline-mode cutoff
 // (a z-score against the speaker's own calibrated history, used when a personal
-// baseline is available) and a no-baseline-mode cutoff (an absolute value used as a
-// cross-speaker default otherwise). Values are unchanged from their prior inline
-// literals; only the names are new.
-const THRESHOLDS = {
+// baseline is available) and a no-baseline-mode cutoff (a cross-speaker default).
+//
+// No-baseline cutoffs must be GAIN-INVARIANT: they may only compare the clip to
+// itself (spectral balance, pitch in semitones, words per second, pause share),
+// never to an absolute sample level. Absolute RMS is set by the microphone, its
+// gain and the talker's distance from it, not by how the talker feels: across
+// CREMA-D, RAVDESS and EmoDB mean speech RMS spans 0.006-0.16 from recording
+// setup alone, so the old absolute energy cutoffs read every CREMA-D clip as
+// "low energy / subdued" whatever the emotion. test/gain-invariance.test.js
+// holds every no-baseline cutoff to this.
+//
+// The vocal-effort and pitch-range cutoffs below were set on the acted corpora
+// (eval/external) and then checked against the calm wild speech in eval/wild;
+// `node scripts/run-external-emotion-eval.mjs --holdout` refits them with one
+// corpus held out to show how far they move.
+export const THRESHOLDS = Object.freeze({
   // categorizeProsody: speaking rate (words/sec).
   rateBaselineZ: 1.35,
   rateFastWordsPerSecondNoBaseline: 3.6,
   rateSlowWordsPerSecondNoBaseline: 1.9,
 
-  // categorizeProsody: energy. energyDefaultMean/Stdev are the population
-  // mean/stdev used as a stand-in baseline when computing a z-score with no
-  // personal baseline.
-  energyDefaultMean: 0.1,
-  energyDefaultStdev: 0.045,
+  // categorizeProsody: energy. With a personal baseline this is loudness against
+  // the speaker's own calibrated history (same mic, so RMS is comparable).
   energyBaselineZ: 1.35,
-  energyHighZNoBaseline: 1.15,
-  energyHighMeanNoBaseline: 0.15,
-  energyLowZNoBaseline: 1.1,
-  energyLowMeanNoBaseline: 0.055,
+  // Without a baseline, "energy" is VOCAL EFFORT read from the alpha ratio
+  // (dB of 1-5 kHz over 50 Hz-1 kHz energy in voiced frames; see src/dsp/mel.js).
+  // Effortful speech has a flatter spectrum. Acted anger measures -1.3 to
+  // -9.0 dB, acted neutral -12.2 to -16.9 dB, acted sadness -14.8 to -20.7 dB
+  // (one 14-voiced-frame CREMA-D take aside).
+  // High: -6 dB, set ABOVE what the acted clips alone would choose. The
+  // held-out refit on acted corpora prefers -9 to -12 dB, but the brightest
+  // CALM talker in the wild YouTube set (a USGS lecture through broadcast
+  // processing) measures -7.4 dB: at -9 three calm wild clips get tension or
+  // urgency flags, at -12 six; at -7 and above, none. -6 keeps a 1.4 dB margin
+  // and costs one CREMA-D anger take (-9.0 dB) and one RAVDESS fear take.
+  vocalEffortHighAlphaDbNoBaseline: -6,
+  // Low: -18 dB. Acted sadness below it: 3/6; acted neutral: 0/5 (lowest
+  // -16.9 dB). The refit is indifferent anywhere from -22 to -13 dB on the
+  // acted training folds, so this cut carries little of the result; narrow
+  // pitch does most of the sad work. Low effort alone is not read as flat delivery
+  // when the pitch range is wide (see isFlatDelivery): a lively low-tilt
+  // talker (the PyCon clip, -21.7 dB over 11 semitones) is not subdued.
+  vocalEffortLowAlphaDbNoBaseline: -18,
+  // Personal baseline: the alpha-ratio z that also counts as raised or lowered
+  // effort against the speaker's own calibration, with a 2 dB minimum spread so
+  // a one-clip baseline cannot turn a 0.5 dB wobble into an outlier.
+  vocalEffortBaselineZ: 1.35,
+  vocalEffortBaselineMinSpreadDb: 2,
 
   // categorizePauseDensity.
   pauseDensityBaselineZ: 1.35,
@@ -46,18 +75,30 @@ const THRESHOLDS = {
   pitchRangeBaselineZ: 1.35,
   pitchRangeBaselineDeltaSemitones: 1.5,
   pitchRangeWideSemitonesNoBaseline: 7,
-  pitchRangeNarrowSemitonesNoBaseline: 3.2,
+  // Narrow: 5 semitones p10-p90. Four of six acted sad clips measure 3.3-5.0 st
+  // (two noisy CREMA-D takes read 11 and 25 st from pitch-tracking error). The
+  // cut is marginal and should be read that way: one neutral CREMA-D take sits
+  // at 5.05 st and one happy take at 4.86 st. The narrowest calm wild talker is
+  // 5.6 st. The old 3.2 st cut caught at most 1 of 6 sad clips.
+  pitchRangeNarrowSemitonesNoBaseline: 5,
 
-  // categorizeVoiceQuality: no-baseline mode flags "tense" on any single absolute
+  // categorizeVoiceQuality: no-baseline mode flags "tense" on any single
   // symptom (low harmonic/pitch confidence, high shimmer, or jitter co-occurring
-  // with energy); baseline mode instead requires a z-score outlier vs. the
-  // speaker's own jitter/shimmer/confidence history.
+  // with raised vocal effort); baseline mode instead requires a z-score outlier
+  // vs. the speaker's own jitter/shimmer/confidence history. The jitter symptom
+  // used to be gated by absolute RMS (jitter >= 0.12 with mean RMS >= 0.05, or
+  // >= 0.06 with peak RMS >= 0.34). It is now gated by raised vocal effort,
+  // which carries the same "the voice is being pushed" meaning without
+  // depending on mic gain. The old 0.12-with-moderate-level term is gone: on
+  // noisy recordings (CREMA-D speaker 1001) pitch-tracking error alone reaches
+  // 0.19-0.49 jitter on neutral and sad takes, and the absolute gate had only
+  // hidden that because those files happen to be quiet.
   voiceQualityLowConfidenceNoBaseline: 0.45,
   voiceQualityHighShimmerNoBaseline: 0.42,
-  voiceQualityHighJitterNoBaseline: 0.12,
-  voiceQualityJitterEnergyFloor: 0.05,
   voiceQualityModerateJitterNoBaseline: 0.06,
-  voiceQualityHighEnergyPeakNoBaseline: 0.34,
+  // Baseline mode only: absolute RMS floor for the jitter symptom. Acceptable
+  // there because a personal baseline is recorded through the same mic.
+  voiceQualityJitterEnergyFloor: 0.05,
   voiceQualityLowConfidenceBaseline: 0.38,
   voiceQualityConfidenceZ: -2,
   voiceQualityJitterZ: 2,
@@ -65,12 +106,17 @@ const THRESHOLDS = {
   voiceQualityShimmerZ: 2,
   voiceQualityShimmerRatioFloor: 0.16,
 
-  // isYelling: extreme-energy detector.
+  // isYelling: extreme-energy detector. Baseline mode: loudness z vs. the
+  // speaker's own history.
   yellingEnergyPeakZ: 1.8,
   yellingEnergyMeanZ: 1.6,
-  yellingEnergyPeakNoBaseline: 0.34,
-  yellingEnergyMeanNoBaseline: 0.19
-};
+  // No-baseline mode: extreme vocal effort, alpha ratio >= -3 dB (the voiced
+  // spectrum nearly as strong above 1 kHz as below it). Only the most
+  // effortful acted anger reaches it (RAVDESS strong intensity -1.7 dB, EmoDB
+  // -1.3 dB); nothing calm in the wild set comes within 4 dB. Elevated delivery
+  // is still required on top.
+  yellingAlphaDbNoBaseline: -3
+});
 
 export async function analyzeFile(audioPath, text, options = {}) {
   const { readWavFile } = await import("../audio/wav.js"); // lazy: keeps this module browser-safe
@@ -92,8 +138,21 @@ export function analyzeSamples({ samples, sampleRate, text, baseline = null, opt
     throw new Error("analyzeSamples requires non-empty transcript text.");
   }
 
+  return buildContract({
+    prosodyResult: extractProsody(samples, sampleRate, options.prosody),
+    text,
+    baseline,
+    options
+  });
+}
+
+// The contract from an already-extracted prosody result. Split out so the
+// held-out eval can refit thresholds without re-running pitch tracking for
+// every candidate. `options.thresholds` overrides THRESHOLDS for that refit
+// only; it is not a supported product knob.
+export function buildContract({ prosodyResult, text, baseline = null, options = {} }) {
+  const thresholds = options.thresholds ? { ...THRESHOLDS, ...options.thresholds } : THRESHOLDS;
   const words = tokenizeWords(text);
-  const prosodyResult = extractProsody(samples, sampleRate, options.prosody);
   const timingAlignment = alignWordsFromTimings(
     words,
     options.wordTimings ?? options.word_timestamps,
@@ -113,8 +172,8 @@ export function analyzeSamples({ samples, sampleRate, text, baseline = null, opt
   const transcript = buildTranscriptMetadata(options, alignment);
   const wordMetrics = scoreWords(alignedWords, prosodyResult.frames);
   const hasPersonalBaseline = isBaseline(baseline);
-  const prosody = categorizeProsody(prosodyResult.summary, wordMetrics, baseline);
-  const flags = buildFlags(text, words, prosody, prosodyResult.summary, wordMetrics, baseline);
+  const prosody = categorizeProsody(prosodyResult.summary, wordMetrics, baseline, thresholds);
+  const flags = buildFlags(text, words, prosody, prosodyResult.summary, wordMetrics, baseline, thresholds);
   const wordFeatures = wordMetrics.map((word) => ({
     word: word.word,
     start: round(word.startSec, 3),
@@ -375,8 +434,17 @@ function chooseEmotionalColoring(cueTypes, prosody) {
   if (cueTypes.includes("tension")) return "tense";
   if (cueTypes.includes("lexical_prosodic_mismatch")) return "mixed";
   if (cueTypes.includes("emphasis")) return "emphatic";
-  if (prosody.energy === "low" || prosody.pitchRange === "narrow") return "subdued";
+  if (isFlatDelivery(prosody)) return "subdued";
   return "neutral";
+}
+
+// Flat delivery: a narrow pitch range or low energy/effort, unless the other
+// dimension contradicts it. Narrow pitch pushed with high effort (clipped,
+// strained speech) is not subdued, and low effort over a wide, lively pitch
+// contour is not flat.
+function isFlatDelivery(prosody) {
+  return (prosody.pitchRange === "narrow" && prosody.energy !== "high")
+    || (prosody.energy === "low" && prosody.pitchRange !== "wide");
 }
 
 function affectInterpretation(emotionalColoring, cueTypes) {
@@ -439,7 +507,7 @@ function estimatePhoneCount(normalizedWord) {
   return Math.max(1, Math.round(vowelGroups + consonants * 0.7));
 }
 
-function categorizeProsody(summary, wordMetrics, baseline) {
+function categorizeProsody(summary, wordMetrics, baseline, THRESHOLDS) {
   const wordsPerSecond = wordMetrics.length / Math.max(0.001, summary.speechDurationSec);
   const hasBaseline = isBaseline(baseline);
   const rateZ = hasBaseline ? zScore(wordsPerSecond, baseline.rate.mean, baseline.rate.stdev) : 0;
@@ -454,25 +522,13 @@ function categorizeProsody(summary, wordMetrics, baseline) {
       : wordsPerSecond <= THRESHOLDS.rateSlowWordsPerSecondNoBaseline
         ? "slow"
         : "normal";
-  const pauseDensity = categorizePauseDensity(summary, baseline);
-
-  const energyCenter = hasBaseline ? baseline.energy.mean : THRESHOLDS.energyDefaultMean;
-  const energySpread = hasBaseline ? baseline.energy.stdev : THRESHOLDS.energyDefaultStdev;
-  const energyZ = zScore(summary.energyMean, energyCenter, energySpread);
+  const pauseDensity = categorizePauseDensity(summary, baseline, THRESHOLDS);
   const energy = hasBaseline
-    ? energyZ >= THRESHOLDS.energyBaselineZ
-      ? "high"
-      : energyZ <= -THRESHOLDS.energyBaselineZ
-        ? "low"
-        : "medium"
-    : energyZ >= THRESHOLDS.energyHighZNoBaseline || summary.energyMean >= THRESHOLDS.energyHighMeanNoBaseline
-      ? "high"
-      : energyZ <= -THRESHOLDS.energyLowZNoBaseline || summary.energyMean <= THRESHOLDS.energyLowMeanNoBaseline
-        ? "low"
-        : "medium";
+    ? categorizeEnergyAgainstBaseline(summary, baseline, THRESHOLDS)
+    : categorizeVocalEffort(summary, THRESHOLDS);
 
-  const pitchRange = categorizePitchRange(summary, baseline);
-  const voiceQuality = categorizeVoiceQuality(summary, baseline);
+  const pitchRange = categorizePitchRange(summary, baseline, THRESHOLDS);
+  const voiceQuality = categorizeVoiceQuality(summary, baseline, energy, THRESHOLDS);
 
   return {
     wordsPerSecond,
@@ -485,7 +541,35 @@ function categorizeProsody(summary, wordMetrics, baseline) {
   };
 }
 
-function categorizePauseDensity(summary, baseline) {
+// No baseline: vocal effort from spectral balance. A ratio inside each frame, so
+// microphone gain cannot move it. No voiced frames at all reads "medium" rather
+// than guessing.
+function categorizeVocalEffort(summary, THRESHOLDS) {
+  const alpha = summary.alphaRatioDb;
+  if (!Number.isFinite(alpha)) return "medium";
+  if (alpha >= THRESHOLDS.vocalEffortHighAlphaDbNoBaseline) return "high";
+  if (alpha <= THRESHOLDS.vocalEffortLowAlphaDbNoBaseline) return "low";
+  return "medium";
+}
+
+// Personal baseline: loudness against the speaker's own history (same mic),
+// and, when the baseline carries it, vocal effort against their own spectral
+// balance. Either one departing from the speaker's normal counts.
+function categorizeEnergyAgainstBaseline(summary, baseline, THRESHOLDS) {
+  const energyZ = zScore(summary.energyMean, baseline.energy.mean, baseline.energy.stdev);
+  const alphaZ = Number.isFinite(summary.alphaRatioDb) && Number.isFinite(Number(baseline.alphaRatio?.mean))
+    ? zScore(
+      summary.alphaRatioDb,
+      Number(baseline.alphaRatio.mean),
+      Math.max(THRESHOLDS.vocalEffortBaselineMinSpreadDb, Number(baseline.alphaRatio.stdev) || 0)
+    )
+    : 0;
+  if (energyZ >= THRESHOLDS.energyBaselineZ || alphaZ >= THRESHOLDS.vocalEffortBaselineZ) return "high";
+  if (energyZ <= -THRESHOLDS.energyBaselineZ || alphaZ <= -THRESHOLDS.vocalEffortBaselineZ) return "low";
+  return "medium";
+}
+
+function categorizePauseDensity(summary, baseline, THRESHOLDS) {
   if (!isBaseline(baseline)) {
     return summary.pauseDensity >= THRESHOLDS.pauseDensityHighNoBaseline
       ? "high"
@@ -501,7 +585,7 @@ function categorizePauseDensity(summary, baseline) {
   return summary.pauseDensity < THRESHOLDS.pauseDensityModerateNoBaseline ? "low" : "moderate";
 }
 
-function categorizePitchRange(summary, baseline) {
+function categorizePitchRange(summary, baseline, THRESHOLDS) {
   if (!isBaseline(baseline)) {
     return summary.pitchRangeSemitones >= THRESHOLDS.pitchRangeWideSemitonesNoBaseline
       ? "wide"
@@ -517,12 +601,11 @@ function categorizePitchRange(summary, baseline) {
   return "medium";
 }
 
-function categorizeVoiceQuality(summary, baseline) {
+function categorizeVoiceQuality(summary, baseline, energy, THRESHOLDS) {
   if (!isBaseline(baseline)) {
     return summary.pitchConfidenceMean <= THRESHOLDS.voiceQualityLowConfidenceNoBaseline
       || summary.shimmerRatio >= THRESHOLDS.voiceQualityHighShimmerNoBaseline
-      || (summary.jitterRatio >= THRESHOLDS.voiceQualityHighJitterNoBaseline && summary.energyMean >= THRESHOLDS.voiceQualityJitterEnergyFloor)
-      || (summary.jitterRatio >= THRESHOLDS.voiceQualityModerateJitterNoBaseline && summary.energyPeak >= THRESHOLDS.voiceQualityHighEnergyPeakNoBaseline)
+      || (summary.jitterRatio >= THRESHOLDS.voiceQualityModerateJitterNoBaseline && energy === "high")
       ? "tense"
       : "steady";
   }
@@ -541,7 +624,7 @@ function categorizeVoiceQuality(summary, baseline) {
   return unusuallyLowConfidence || unusuallyJittery || unusuallyShimmery ? "tense" : "steady";
 }
 
-function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
+function buildFlags(text, words, prosody, summary, wordMetrics, baseline, THRESHOLDS) {
   const normalizedWords = words.map((word) => word.normalized);
   const filledPauseCount = normalizedWords.filter((word) => FILLED_PAUSES.has(word)).length;
   const softenerCount = countSofteners(normalizedWords);
@@ -551,11 +634,14 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
   const strongest = wordMetrics.toSorted((a, b) => b.z - a.z)[0];
   const flags = [];
 
-  if (isYelling(prosody, summary, baseline)) {
+  if (isYelling(prosody, summary, baseline, THRESHOLDS)) {
+    const margin = isBaseline(baseline)
+      ? summary.energyPeak - 0.3
+      : (summary.alphaRatioDb - THRESHOLDS.yellingAlphaDbNoBaseline) * 0.05;
     flags.push({
       type: "yelling",
-      evidence: yellingEvidence(prosody, summary),
-      conf: confidence(0.68 + Math.min(0.2, Math.max(0, summary.energyPeak - 0.3)))
+      evidence: yellingEvidence(prosody, summary, baseline),
+      conf: confidence(0.68 + Math.min(0.2, Math.max(0, margin)))
     });
   }
 
@@ -604,10 +690,21 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
     });
   }
 
-  if (prosody.voiceQuality === "tense" || (prosody.energy === "high" && prosody.pitchRange === "wide")) {
+  // Raised energy reads as tension. With a personal baseline "high" is only
+  // louder than usual, so it still needs a wide pitch range to back it up.
+  // Without one, "high" is already the -6 dB vocal-effort cut, which calm speech
+  // did not reach in either eval set, so it counts on its own: acted fear
+  // often pushes effort over a narrow, clipped pitch range.
+  const raisedEnergyTension = prosody.energy === "high"
+    && (prosody.pitchRange === "wide" || !isBaseline(baseline));
+  if (prosody.voiceQuality === "tense" || raisedEnergyTension) {
     flags.push({
       type: "tension",
-      evidence: prosody.voiceQuality === "tense" ? "jitter/shimmer or low harmonic confidence" : "high energy + wide pitch range",
+      evidence: prosody.voiceQuality === "tense"
+        ? "jitter/shimmer or low harmonic confidence"
+        : isBaseline(baseline)
+          ? "high energy + wide pitch range"
+          : `raised vocal effort + ${prosody.pitchRange} pitch range`,
       conf: confidence(prosody.voiceQuality === "tense" ? 0.62 : 0.56)
     });
   }
@@ -626,7 +723,7 @@ function buildFlags(text, words, prosody, summary, wordMetrics, baseline) {
       evidence: "softening language with elevated delivery",
       conf: 0.61
     });
-  } else if (positiveCount > negativeCount && (prosody.energy === "low" || prosody.pitchRange === "narrow") && prosody.rate !== "fast") {
+  } else if (positiveCount > negativeCount && isFlatDelivery(prosody) && prosody.rate !== "fast") {
     flags.push({
       type: "lexical_prosodic_mismatch",
       evidence: "positive wording with flat or low-energy delivery",
@@ -669,23 +766,28 @@ function countSofteners(normalizedWords) {
   return count;
 }
 
-function isYelling(prosody, summary, baseline) {
+function isYelling(prosody, summary, baseline, THRESHOLDS) {
   const extremeEnergy = isBaseline(baseline)
     ? zScore(summary.energyPeak, baseline.energyPeak.mean, baseline.energyPeak.stdev) >= THRESHOLDS.yellingEnergyPeakZ
       || zScore(summary.energyMean, baseline.energy.mean, baseline.energy.stdev) >= THRESHOLDS.yellingEnergyMeanZ
-    : summary.energyPeak >= THRESHOLDS.yellingEnergyPeakNoBaseline || summary.energyMean >= THRESHOLDS.yellingEnergyMeanNoBaseline;
+    : Number.isFinite(summary.alphaRatioDb) && summary.alphaRatioDb >= THRESHOLDS.yellingAlphaDbNoBaseline;
   const elevatedDelivery = prosody.energy === "high" && (prosody.pitchRange === "wide" || prosody.rate === "fast" || prosody.voiceQuality === "tense");
   return extremeEnergy && elevatedDelivery && prosody.pauseDensity !== "high";
 }
 
-function yellingEvidence(prosody, summary) {
+function yellingEvidence(prosody, summary, baseline) {
+  const calibrated = isBaseline(baseline);
   const pieces = [
-    "very high energy",
+    calibrated ? "very high energy" : "extreme vocal effort",
     `${prosody.pitchRange} pitch range`,
     `${prosody.rate} rate`
   ];
   if (prosody.voiceQuality === "tense") pieces.push("tense voice quality");
-  pieces.push(`energy peak ${round(summary.energyPeak, 2)}`);
+  // Uncalibrated evidence quotes only level-independent numbers, so the same
+  // shout through a quieter mic produces the same evidence text.
+  pieces.push(calibrated
+    ? `energy peak ${round(summary.energyPeak, 2)}`
+    : `spectral balance ${round(summary.alphaRatioDb, 1)} dB`);
   return pieces.join(" + ");
 }
 

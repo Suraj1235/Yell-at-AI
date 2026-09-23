@@ -38,9 +38,11 @@ export function buildBaselineFromSamples(entries, options = {}) {
       pauseDensity: prosody.pauseDensity,
       pitchConfidenceMean: prosody.pitchConfidenceMean,
       jitterRatio: prosody.jitterRatio,
-      shimmerRatio: prosody.shimmerRatio
+      shimmerRatio: prosody.shimmerRatio,
+      alphaRatioDb: prosody.alphaRatioDb
     };
   });
+  const alphaValues = measurements.map((item) => item.alphaRatioDb);
 
   return {
     schema: BASELINE_SCHEMA,
@@ -53,7 +55,10 @@ export function buildBaselineFromSamples(entries, options = {}) {
     pauseDensity: summarize(measurements.map((item) => item.pauseDensity)),
     pitchConfidence: summarize(measurements.map((item) => item.pitchConfidenceMean)),
     jitter: summarize(measurements.map((item) => item.jitterRatio)),
-    shimmer: summarize(measurements.map((item) => item.shimmerRatio))
+    shimmer: summarize(measurements.map((item) => item.shimmerRatio)),
+    // Vocal effort (spectral balance). Optional: baselines saved before it
+    // existed stay valid and simply fall back to loudness alone.
+    ...(alphaValues.every(Number.isFinite) ? { alphaRatio: summarize(alphaValues) } : {})
   };
 }
 
@@ -77,7 +82,10 @@ export function mergeBaselines(existing, incoming) {
     pauseDensity: mergeSummary(existing.pauseDensity, incoming.pauseDensity, existing.samples, incoming.samples),
     pitchConfidence: mergeSummary(existing.pitchConfidence, incoming.pitchConfidence, existing.samples, incoming.samples),
     jitter: mergeSummary(existing.jitter, incoming.jitter, existing.samples, incoming.samples),
-    shimmer: mergeSummary(existing.shimmer, incoming.shimmer, existing.samples, incoming.samples)
+    shimmer: mergeSummary(existing.shimmer, incoming.shimmer, existing.samples, incoming.samples),
+    ...(hasSummary(existing.alphaRatio) && hasSummary(incoming.alphaRatio)
+      ? { alphaRatio: mergeSummary(existing.alphaRatio, incoming.alphaRatio, existing.samples, incoming.samples) }
+      : {})
   };
 }
 
