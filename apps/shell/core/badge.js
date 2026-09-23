@@ -5,9 +5,13 @@
 // capture is possible and there is no code path that hides or removes it.
 //
 // The rule it has to satisfy is that the sentence is literally true in EVERY
-// state the shell can be in, including the states where nothing is sent:
+// state the shell can be in, including the states where nothing is sent. The
+// state is chosen from the engine's `egress` field, never from its name:
 //
 //   vendor   a recognizer is active and uploads audio; name the vendor
+//   none     a local recognizer (whisper.cpp on the desktop) is active, so the
+//            words are recognised on this device and no audio is sent
+//   unknown  a user-supplied command; we cannot know what it does, so say so
 //   none     the engine is set to "none", so the user types the words and no
 //            audio is sent to anyone for recognition
 //   none     this browser cannot record at all, so there is no audio
@@ -20,6 +24,15 @@
 
 import { ENGINES } from "./engine.js";
 
+// Which registry entry is in force. `reported` is what the host said it ran
+// (the desktop CLI reports the engine it used, carrying `egress`); before any
+// turn has run it is the registry entry for the selected engine. The badge's
+// wording is chosen from `egress`, never from a name.
+export function engineInfo(engine, reported = null) {
+  if (reported && reported.egress) return { ...(ENGINES[reported.id] || {}), ...reported };
+  return ENGINES[engine] || null;
+}
+
 // The sentence onboarding uses to say what you are not signing up for.
 //
 // It is derived here, from the same registry the badge reads, rather than
@@ -28,11 +41,31 @@ import { ENGINES } from "./engine.js";
 // exactly where an over-claim would do the most damage. The shape stays the
 // same in every state: no account, no word limit, and then precisely what does
 // and does not leave this device.
-export function privacyLine({ canCapture, engine }) {
-  if (!canCapture || engine !== "webspeech") {
+export function privacyLine({ canCapture, engine, reported = null }) {
+  const info = canCapture ? engineInfo(engine, reported) : null;
+  if (!info) {
     return (
       "No account, no word limit, nothing to subscribe to. No audio is sent to anyone for " +
       "recognition: you type the words, and the prosody is read here, on this device."
+    );
+  }
+  if (info.egress === "none") {
+    return (
+      "No account, no word limit, nothing to subscribe to. The words are recognised on this " +
+      `device by ${info.label}, and the prosody is read here too. No audio is sent to anyone for recognition.`
+    );
+  }
+  if (info.egress === "vendor" && info.id !== "webspeech") {
+    return (
+      "No account, no word limit, nothing to subscribe to. Prosody analysis runs here, on this " +
+      `device. On this engine the audio goes to ${info.vendor} for the words alone.`
+    );
+  }
+  if (info.egress !== "vendor") {
+    return (
+      "No account, no word limit, nothing to subscribe to. Prosody analysis runs here, on this " +
+      "device. The words come from a command you configured, and whether it sends audio anywhere " +
+      "depends entirely on that command."
     );
   }
   return (
@@ -54,7 +87,9 @@ export function createBadge(root) {
   }
 
   return {
-    render({ canCapture, engine }) {
+    // `reported` is the engine descriptor the host returned for the last turn
+    // (desktop), so the badge follows what actually ran, not what was picked.
+    render({ canCapture, engine, reported = null }) {
       if (!canCapture) {
         paint(
           "none",
@@ -65,7 +100,9 @@ export function createBadge(root) {
         return;
       }
 
-      if (engine !== "webspeech") {
+      const info = engine === "none" ? null : engineInfo(engine, reported);
+
+      if (!info) {
         paint(
           "none",
           "Transcription engine — none, you type the transcript",
@@ -75,7 +112,27 @@ export function createBadge(root) {
         return;
       }
 
-      const active = ENGINES.webspeech;
+      if (info.egress === "none") {
+        paint(
+          "none",
+          `Transcription engine — ${info.label}`,
+          "The words are recognised on this device, and the prosody is read here too. No audio " +
+            "is sent to anyone for recognition."
+        );
+        return;
+      }
+
+      if (info.egress !== "vendor") {
+        paint(
+          "unknown",
+          `Transcription engine — ${info.label}`,
+          "The words come from a command you configured. Whether it sends your audio anywhere " +
+            "depends entirely on that command; the prosody analysis runs on this device either way."
+        );
+        return;
+      }
+
+      const active = info.id === "webspeech" ? ENGINES.webspeech : info;
       paint(
         "vendor",
         `Transcription engine — ${active.label}`,

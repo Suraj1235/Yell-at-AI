@@ -564,6 +564,13 @@ pub fn subtext_history_append(
     app.state::<History>().append(&app, entry)
 }
 
+/// Upsert by id. The shell owns `id` and `at` for its turns and writes each one
+/// twice (before insertion, then with the outcome); see `History::put`.
+#[tauri::command]
+pub fn subtext_history_put(app: AppHandle, entry: HistoryEntry) -> Result<HistoryEntry, String> {
+    app.state::<History>().put(&app, entry)
+}
+
 #[tauri::command]
 pub fn subtext_history_delete(app: AppHandle, id: String) -> Result<bool, String> {
     app.state::<History>().delete(&app, &id)
@@ -621,9 +628,32 @@ pub struct StatusRequest {
 
 /// Let the frontend drive the tray, the title, and the pill through the same
 /// path the Rust side uses, so the three surfaces cannot disagree.
+///
+/// A terminal or idle status from the frontend also settles the hotkey. The
+/// shell can end a turn on its own - auto-stop after quiet, a click on the pill,
+/// a microphone that failed to open - and without this the Rust state machine
+/// would still think a tap-to-toggle turn was open, so the next press would be
+/// read as "end" instead of "start" and the user's first press would vanish.
 #[tauri::command]
 pub fn subtext_status_set(app: AppHandle, request: StatusRequest) {
+    if matches!(
+        request.status,
+        PttStatus::Ready | PttStatus::Delivered | PttStatus::Failed
+    ) {
+        hotkey::settle(&app);
+    }
     status::set_status(&app, request.status, &request.detail.unwrap_or_default());
+}
+
+// --- foreground app -------------------------------------------------------
+
+/// The app that will receive a paste: its window title and executable name.
+/// The shell uses it to pick the per-app insertion rule (full vocal-context
+/// block for AI tools, plain text elsewhere). `None` where the platform gives
+/// us no cheap way to ask; the shell then falls back to its default rule.
+#[tauri::command]
+pub fn subtext_foreground_app() -> Option<crate::foreground::ForegroundApp> {
+    crate::foreground::current()
 }
 
 // --- hotkey ---------------------------------------------------------------

@@ -63,7 +63,7 @@ pub struct HotkeyRuntime {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HotkeyEvent {
-    /// "start" | "end" | "cancel"
+    /// "start" | "end" | "cancel" | "latch" (a tap: the turn stays open)
     pub phase: String,
     /// "hold" | "toggle" | "pending"
     pub mode: String,
@@ -307,9 +307,11 @@ fn on_release(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
                     guard.pressed_at = None;
                     Some(("end", "hold", guard.turn, held as u64))
                 } else {
-                    // Too quick to be a hold: leave the turn open as a toggle.
+                    // Too quick to be a hold: leave the turn open as a toggle,
+                    // and say so, so the frontend can show hands-free (and
+                    // apply its quiet auto-stop) instead of looking held.
                     guard.phase = Phase::Toggled;
-                    None
+                    Some(("latch", "toggle", guard.turn, held as u64))
                 }
             }
             // A release in any other phase is the tail of a gesture we already
@@ -322,10 +324,44 @@ fn on_release(app: &AppHandle, runtime: &Arc<HotkeyRuntime>) {
         return;
     };
 
+    if phase == "latch" {
+        // The turn is still live: Esc stays armed and the status stays
+        // Listening. Only the frontend needs to hear about it.
+        emit(app, runtime, phase, mode, turn, held);
+        return;
+    }
+
     disarm_cancel(app, runtime);
     emit(app, runtime, phase, mode, turn, held);
     if runtime.is_claimed() {
         set_status(app, PttStatus::Thinking, "Transcribing and reading prosody...");
+    }
+}
+
+/// The frontend ended a tap-to-toggle turn by itself (auto-stop after quiet, a
+/// click on the pill, a microphone that never opened). Put the gesture machine
+/// back to Idle and release Esc, without emitting anything - the frontend
+/// already knows.
+///
+/// Only `Toggled` is settled. `Undecided` means the key is physically down, and
+/// its release will still arrive and close the gesture; resetting it here would
+/// race a fresh press (the frontend reporting "ready" from the previous turn a
+/// moment after the user started the next one) and swallow that turn's release.
+pub fn settle(app: &AppHandle) {
+    let runtime = app.state::<Arc<HotkeyRuntime>>().inner().clone();
+    let settled = {
+        let Ok(mut guard) = runtime.inner.lock() else {
+            return;
+        };
+        if guard.phase != Phase::Toggled {
+            return;
+        }
+        guard.phase = Phase::Idle;
+        guard.pressed_at = None;
+        true
+    };
+    if settled {
+        disarm_cancel(app, &runtime);
     }
 }
 

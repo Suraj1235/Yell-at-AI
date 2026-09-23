@@ -688,6 +688,7 @@ body {
 /* ───────────────────────── Settings ───────────────────────── */
 .settings { display: grid; gap: 26px; max-width: 480px; }
 .field { display: grid; gap: 7px; }
+.field[hidden] { display: none; }
 .field label, .field .label { font: 600 13.5px var(--sans); color: var(--ink); }
 .field select {
   appearance: none;
@@ -883,6 +884,26 @@ body[data-state="idle"] .pill-layer[data-visibility="active"]:focus-within .pill
   font-size: 11.5px;
   padding: 4px 9px;
 }
+
+/* ── the overlay window (pill.html) ───────────────────────────────────────
+   The desktop overlay hosts the very same .pill-layer, styled by the very same
+   rules above; this block only makes the window around it disappear. The
+   window is transparent and click-through, so the page is too, and the pill
+   sits on the window's bottom edge exactly as it sits on the main window's. */
+html.overlay,
+html.overlay body {
+  background: transparent;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+}
+html.overlay .pill-layer { bottom: 8px; }
+/* Idle never shows: Rust hides the window on Ready. Belt and braces, so a
+   late paint can never leave a resting capsule floating over someone's work. */
+html.overlay body[data-state="idle"] .pill { opacity: 0; }
 
 /* ───────────────────────── Toast ─────────────────────────
    Same material as the pill, directly above it: this is the pill talking,

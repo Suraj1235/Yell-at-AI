@@ -1028,9 +1028,16 @@ test("adapter package builder emits local bundles for every harness", async () =
   assert.equal(desktopConfig.productName, "Subtext Desktop");
   assert.equal(desktopConfig.app.withGlobalTauri, true);
 
-  const desktopHtml = await readFile(join(root, "dist", "adapters", "native-desktop", "apps", "desktop", "src", "index.html"), "utf8");
-  assert.match(desktopHtml, /subtext_load_config/);
-  assert.match(desktopHtml, /subtext_session/);
+  // The desktop bundle carries the shared shell and the engine it imports, so
+  // build.rs can stage them and the crate compiles standalone.
+  const desktopBundle = join(root, "dist", "adapters", "native-desktop", "apps");
+  const shellHtml = await readFile(join(desktopBundle, "shell", "index.html"), "utf8");
+  assert.match(shellHtml, /id="engine-badge"/);
+  const overlayHtml = await readFile(join(desktopBundle, "shell", "pill.html"), "utf8");
+  assert.match(overlayHtml, /core\/overlay\.js/);
+  const tauriAdapter = await readFile(join(desktopBundle, "shell", "platform", "platform.tauri.js"), "utf8");
+  assert.match(tauriAdapter, /subtext_hotkey_claim/);
+  await readFile(join(desktopBundle, "web", "vendor", "index.browser.js"), "utf8");
 });
 
 test("adapter installer writes concrete host config and runnable copied hooks", async () => {

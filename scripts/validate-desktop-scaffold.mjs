@@ -24,9 +24,24 @@ const CARGO_TIMEOUT_MS = 15 * 60 * 1000;
 const config = JSON.parse(await readFile("apps/desktop/src-tauri/tauri.conf.json", "utf8"));
 assert.equal(config.productName, "Subtext Desktop");
 assert.equal(config.identifier, "ai.subtext.desktop");
-assert.equal(config.build.frontendDist, "../src");
+// The frontend is the shared shell (apps/shell) plus the engine it imports
+// (apps/web/vendor), staged into gen/frontend by build.rs. Not apps/ itself:
+// Tauri embeds everything under frontendDist, and apps/ holds this crate's
+// target/ directory.
+assert.equal(config.build.frontendDist, "gen/frontend");
 assert.equal(config.app.withGlobalTauri, true);
 assert.match(config.app.security.csp, /default-src 'self'/);
+assert.doesNotMatch(config.app.security.csp, /unsafe-eval/, "the desktop CSP must never allow eval");
+assert.doesNotMatch(
+  config.app.security.csp.match(/script-src[^;]*/)?.[0] ?? "",
+  /unsafe-inline/,
+  "the shell has no inline scripts, so script-src must not allow them"
+);
+assert.match(config.app.security.csp, /connect-src[^;]*ipc:/, "invoke() needs the IPC origin in connect-src");
+const buildRs = await readFile("apps/desktop/src-tauri/build.rs", "utf8");
+assert.match(buildRs, /"\.\.\/\.\.\/shell"/);
+assert.match(buildRs, /"\.\.\/\.\.\/web\/vendor"/);
+assert.match(buildRs, /tauri_build::build\(\)/);
 
 // The shell ships as an unsigned build, so bundling is on and signing is not.
 assert.equal(config.bundle.active, true);
@@ -41,9 +56,15 @@ for (const icon of config.bundle.icon) {
 // able to steal focus from whatever the user is typing into.
 const windows = Object.fromEntries(config.app.windows.map((entry) => [entry.label, entry]));
 assert.ok(windows.main, "tauri.conf.json must declare the 'main' window");
+assert.equal(windows.main.url, "shell/index.html");
 const pill = windows.pill;
 assert.ok(pill, "tauri.conf.json must declare the 'pill' overlay window");
-assert.equal(pill.url, "pill.html");
+assert.equal(pill.url, "shell/pill.html");
+// Both window URLs resolve to real files once staged: gen/frontend/shell/* is
+// a mirror of apps/shell/*.
+for (const url of [windows.main.url, pill.url]) {
+  assert.ok(existsSync(`apps/${url}`), `window url ${url} has no source file at apps/${url}`);
+}
 assert.equal(pill.focusable, false);
 assert.equal(pill.decorations, false);
 assert.equal(pill.transparent, true);
@@ -90,7 +111,9 @@ for (const command of [
   "subtext_pill_hide",
   "subtext_pill_position",
   "subtext_hotkey_set",
-  "subtext_hotkey_claim"
+  "subtext_hotkey_claim",
+  "subtext_history_put",
+  "subtext_foreground_app"
 ]) {
   assert.match(commands, new RegExp(`fn ${command}\\b`), `missing command ${command}`);
   assert.match(lib, new RegExp(`commands::${command}\\b`), `${command} is not in generate_handler!`);
@@ -115,18 +138,30 @@ const sidecar = await readFile("apps/desktop/src-tauri/src/sidecar.rs", "utf8");
 assert.match(sidecar, /tokio::time::timeout/);
 assert.match(sidecar, /kill_on_drop/);
 
-const html = await readFile("apps/desktop/src/index.html", "utf8");
-assert.match(html, /Subtext Desktop/);
-assert.match(html, /__TAURI__/);
-assert.match(html, /subtext_load_config/);
-assert.match(html, /subtext_session/);
-assert.match(html, /subtext-desktop\.generated\.json/);
-assert.match(html, /visible|Recording|Record Bounded Turn/);
-assert.match(html, /subtext:\/\/hotkey/);
+// The shared shell drives the Rust side through platform.tauri.js. The
+// non-negotiables from CONTRACT.md section 3 are asserted where they live.
+assert.ok(!existsSync("apps/desktop/src"), "apps/desktop/src is retired; the frontend is apps/shell");
+const adapter = await readFile("apps/shell/platform/platform.tauri.js", "utf8");
+assert.doesNotMatch(adapter, /NotWiredError/, "platform.tauri.js must be the real adapter, not the stub");
+assert.match(adapter, /subtext_hotkey_claim", \{ claimed: true \}/, "the shell must claim the hotkey on boot");
+assert.match(adapter, /subtext:\/\/hotkey/);
+assert.match(adapter, /subtext_insert/);
+assert.match(adapter, /result\.pasted/, "pasted:false must be read as a copy, not thrown");
+assert.match(adapter, /subtext_stage_audio/);
+assert.match(adapter, /subtext_transcribe/);
+assert.match(adapter, /subtext_history_put/);
+assert.match(adapter, /egress/, "the badge is painted from the reported engine's egress");
+const selector = await readFile("apps/shell/platform/index.js", "utf8");
+assert.match(selector, /__TAURI__/);
 
-const pillHtml = await readFile("apps/desktop/src/pill.html", "utf8");
-assert.match(pillHtml, /subtext:\/\/status/);
-assert.match(pillHtml, /subtext:\/\/pill/);
+const pillHtml = await readFile("apps/shell/pill.html", "utf8");
+assert.match(pillHtml, /shell\.css/);
+assert.match(pillHtml, /core\/overlay\.js/);
+const overlay = await readFile("apps/shell/core/overlay.js", "utf8");
+assert.match(overlay, /subtext:\/\/status/);
+assert.match(overlay, /subtext:\/\/pill/);
+assert.match(overlay, /createPill/);
+assert.doesNotMatch(overlay, /setFocus/, "the overlay must never take focus");
 
 const readme = await readFile("apps/desktop/README.md", "utf8");
 assert.match(readme, /not a signed app/i);

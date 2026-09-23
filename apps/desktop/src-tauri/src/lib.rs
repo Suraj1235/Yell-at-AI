@@ -17,11 +17,12 @@
 // true Tauri `externalBin` is a later task.
 //
 // The window / command / event contract this exposes is documented in
-// apps/desktop/CONTRACT.md, so the shared shell in `apps/shell/` can replace
-// `apps/desktop/src/` by pointing `frontendDist` at it.
+// apps/desktop/CONTRACT.md. The frontend is the shared product shell in
+// `apps/shell/`, staged next to the vendored engine it imports by build.rs.
 
 mod commands;
 mod config;
+mod foreground;
 mod history;
 mod hotkey;
 mod pill;
@@ -102,6 +103,7 @@ pub fn run() {
             commands::subtext_insert,
             commands::subtext_history_list,
             commands::subtext_history_append,
+            commands::subtext_history_put,
             commands::subtext_history_delete,
             commands::subtext_history_clear,
             commands::subtext_history_path,
@@ -109,6 +111,7 @@ pub fn run() {
             commands::subtext_pill_hide,
             commands::subtext_pill_position,
             commands::subtext_status_set,
+            commands::subtext_foreground_app,
             commands::subtext_hotkey_status,
             commands::subtext_hotkey_set,
             commands::subtext_hotkey_claim,

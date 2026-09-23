@@ -136,6 +136,30 @@ impl History {
         Ok(stored)
     }
 
+    /// Insert or replace an entry whose `id` and `at` the caller already owns.
+    ///
+    /// The shell writes a turn to history BEFORE it tries to insert it (so a
+    /// failed insertion never loses the words) and then writes it again with the
+    /// outcome. `append` would record that as two turns; this replaces the first
+    /// write in place. Newest first, capped at `HISTORY_LIMIT`, same as append.
+    pub fn put<R: Runtime, M: Manager<R>>(
+        &self,
+        app: &M,
+        entry: HistoryEntry,
+    ) -> Result<HistoryEntry, String> {
+        if entry.id.trim().is_empty() {
+            return Err("A history entry needs an id.".to_string());
+        }
+        let path = self.location(app)?;
+        let mut file = read_file(&path)?;
+        file.entries.retain(|existing| existing.id != entry.id);
+        file.entries.push(entry.clone());
+        file.entries.sort_by(|a, b| b.at.cmp(&a.at));
+        file.entries.truncate(HISTORY_LIMIT);
+        write_file(&path, &file)?;
+        Ok(entry)
+    }
+
     pub fn delete<R: Runtime, M: Manager<R>>(&self, app: &M, id: &str) -> Result<bool, String> {
         let path = self.location(app)?;
         let mut file = read_file(&path)?;

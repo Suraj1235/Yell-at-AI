@@ -28,16 +28,17 @@ previous binding stays active. It never fails silently.
 
 ## Two capture paths
 
-The desktop app can record in either of two places, and which one is live is an
-explicit choice:
+The desktop app can record in either of two places:
 
-1. **WebView capture (the product path).** Tick *capture in this window* and the
-   frontend records with `getUserMedia`, encodes a 16-bit PCM WAV in-page, and
-   hands the bytes to Rust. No ffmpeg, no `sox`, no `arecord`. Rust then calls
-   the Node CLI to transcribe and analyse, and inserts the result.
-2. **CLI capture (the original dev-build path, and the default).** Until a
-   frontend claims the hotkey with `subtext_hotkey_claim`, the press edge runs
-   one bounded turn through the Node CLI exactly as the first scaffold did:
+1. **WebView capture (the product path, and what the shell does).** The shell
+   claims the hotkey with `subtext_hotkey_claim` on boot, records with
+   `getUserMedia`, reads the prosody in-page with the vendored engine, encodes a
+   16 kHz 16-bit PCM WAV for whisper, and hands the bytes to Rust. No ffmpeg, no
+   `sox`, no `arecord`. Rust calls the Node CLI to transcribe, and inserts the
+   result into the focused app.
+2. **CLI capture (the original dev-build path).** If no frontend claims the
+   hotkey - the shell failed to load, say - the press edge runs one bounded turn
+   through the Node CLI exactly as the first scaffold did:
 
    ```sh
    node /absolute/path/to/Yell-at-AI/bin/subtext.js ptt \
@@ -68,8 +69,9 @@ so a wedged sidecar surfaces as an error rather than a hang.
   hidden by default and shown for the duration of a turn.
 - **Tray** - status (Ready / Listening / Thinking / Delivered / Failed), open
   the window, open the local history folder, quit.
-- **Window title and banner** - the same status, so all three agree.
-- **Launch at login** - a checkbox in the window, via `tauri-plugin-autostart`.
+- **Window title** - the same status, so all three agree.
+- **Launch at login** - a desktop-only setting in the shell, via
+  `tauri-plugin-autostart`.
 - **History** - the last 100 turns, in a JSON file under the OS app-data
   directory. Local only; the tray can open the folder so you can check.
 
@@ -168,13 +170,14 @@ dependencies. They are on-brand **placeholders**, not finished brand assets.
 `tauri-build` refuses to build on Windows without `icons/icon.ico`, so they have
 to exist for the crate to compile at all.
 
-## Extending or replacing the frontend
+## The frontend
 
-`apps/desktop/src/` is self-contained and is the reference implementation of the
-window / command / event contract. The shared shell at `apps/shell/` replaces it
-by pointing `frontendDist` at itself. **The contract is documented in
-[CONTRACT.md](CONTRACT.md)** - windows, events, commands, and what each side
-owns.
+The app runs the shared product shell, `apps/shell/` - the same files the web
+build serves - with `platform/platform.tauri.js` as its adapter. `build.rs`
+stages `apps/shell/**` and `apps/web/vendor/**` into the gitignored
+`src-tauri/gen/frontend/` so the shell's relative import of the engine resolves
+unchanged. **The contract is documented in [CONTRACT.md](CONTRACT.md)** -
+windows, events, commands, and what each side owns.
 
 ## Status and follow-ups
 
@@ -189,7 +192,8 @@ This is a **dev build**. Concretely out of scope for now:
 - **SQLite history.** History is a capped JSON file; the command surface is the
   same either way.
 - **Per-app insertion rules** (full `<vocal-context>` for AI apps, plain text for
-  Slack and email) live in the shell, not here.
+  Slack and email) live in the shell (`apps/shell/core/targets.js`); Rust only
+  reports the foreground app, and only on Windows so far.
 - **Native Android/iOS.** The crate has the `[lib]` target and `pub fn run()`
   that `tauri android init` / `tauri ios init` require; the desktop-only plugins
   still need target-gating when that lands. See CONTRACT.md §5.

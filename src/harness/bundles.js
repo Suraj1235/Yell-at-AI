@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runHarnessDoctor } from "./doctor.js";
@@ -55,12 +55,17 @@ export const BUNDLE_FILES = Object.freeze({
   // is a library plus a thin binary, so every module must ship; tauri-build
   // additionally reads tauri.conf.json's icon list and the capabilities dir at
   // build time, so those must be present too or the bundle fails to compile.
+  //
+  // The frontend is the shared product shell plus the engine it imports by
+  // relative URL. build.rs stages both into gen/frontend and fails the build if
+  // either is missing, so both trees ship whole. An entry ending in "/**" is a
+  // directory copied recursively.
   "native-desktop": [
     "apps/desktop/README.md",
     "apps/desktop/CONTRACT.md",
     "apps/desktop/package.json",
-    "apps/desktop/src/index.html",
-    "apps/desktop/src/pill.html",
+    "apps/shell/**",
+    "apps/web/vendor/**",
     "apps/desktop/src-tauri/Cargo.toml",
     "apps/desktop/src-tauri/Cargo.lock",
     "apps/desktop/src-tauri/build.rs",
@@ -76,6 +81,7 @@ export const BUNDLE_FILES = Object.freeze({
     "apps/desktop/src-tauri/src/lib.rs",
     "apps/desktop/src-tauri/src/commands.rs",
     "apps/desktop/src-tauri/src/config.rs",
+    "apps/desktop/src-tauri/src/foreground.rs",
     "apps/desktop/src-tauri/src/history.rs",
     "apps/desktop/src-tauri/src/hotkey.rs",
     "apps/desktop/src-tauri/src/pill.rs",
@@ -105,7 +111,7 @@ export async function buildAdapterBundles(options = {}) {
   const bundles = [];
   for (const harness of harnesses) {
     const doctorHarness = doctor.harnesses.find((item) => item.id === harness.id);
-    const files = BUNDLE_FILES[harness.id] ?? [];
+    const files = await bundleFiles(root, harness.id);
     const bundleDir = join(outRoot, harness.id);
     await mkdir(bundleDir, { recursive: true });
 
@@ -155,7 +161,7 @@ export async function installAdapter(options = {}) {
     throw new Error(`${harness.id} is not ready. Run subtext doctor --harness ${harness.id}.`);
   }
 
-  const files = BUNDLE_FILES[harness.id] ?? [];
+  const files = await bundleFiles(root, harness.id);
   const generatedFiles = generatedInstallFiles({ harness, root });
   const plannedFiles = [
     ...files.map((file) => ({ kind: "copy", path: file, source: join(root, file), target: join(targetRoot, file) })),
@@ -207,6 +213,34 @@ export async function installAdapter(options = {}) {
   };
 }
 
+// BUNDLE_FILES with every "dir/**" entry expanded to the files under it,
+// forward-slashed and sorted, so manifests are stable across platforms.
+export async function bundleFiles(root, harnessId) {
+  const out = [];
+  for (const entry of BUNDLE_FILES[harnessId] ?? []) {
+    if (!entry.endsWith("/**")) {
+      out.push(entry);
+      continue;
+    }
+    const base = entry.slice(0, -3);
+    out.push(...(await walk(join(root, base))).map((file) => `${base}/${file}`));
+  }
+  return out;
+}
+
+async function walk(directory, prefix = "") {
+  const found = [];
+  const entries = (await readdir(directory, { withFileTypes: true }))
+    .filter((entry) => !entry.name.startsWith("."))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) found.push(...(await walk(join(directory, entry.name), relativePath)));
+    else if (entry.isFile()) found.push(relativePath);
+  }
+  return found;
+}
+
 export async function readHarnessCatalog(root = ROOT) {
   return JSON.parse(await readFile(join(root, "adapters", "harnesses.json"), "utf8"));
 }
@@ -216,7 +250,7 @@ export function installHint(harness) {
   if (harness.id === "claude-code") return "Install the hook and skill in Claude Code, and set SUBTEXT_CLI_PATH to this checkout's bin/subtext.js.";
   if (harness.id === "vscode") return "Open the copied VS Code adapter folder as an extension host project and apply settings.generated.json.";
   if (harness.id === "hotkey") return "Copy hammerspoon-subtext.generated.lua into ~/.hammerspoon/init.lua or load it from your Hammerspoon config.";
-  if (harness.id === "native-desktop") return "Use the Tauri scaffold in apps/desktop as the native desktop launch track; run npm run desktop:check before attempting a signed build.";
+  if (harness.id === "native-desktop") return "Use the Tauri app in apps/desktop (it runs the shared shell from apps/shell); run npm run desktop:check before attempting a signed build.";
   if (harness.id === "universal") return "Use subtext handoff --target clipboard or --target paste to deliver an enriched prompt into any text field.";
   if (harness.id === "desktop-capture") return "Use subtext session --duration 4 --transcript-command \"host-transcript --json {audio}\" to record natural speech and bridge host transcript text plus metadata.";
   if (harness.id === "realtime") return "Paste the steering guidance into the native audio session instructions.";

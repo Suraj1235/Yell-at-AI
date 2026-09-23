@@ -71,8 +71,11 @@ const MAX_SECONDS = 120;
 const SpeechRecognitionImpl = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
 const AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext;
 
+// Read through globalThis: a bare `navigator` is a ReferenceError at import time
+// in any host without it (Node 20, workers), which broke the test suite on Node 20.
+const mediaDevices = globalThis.navigator?.mediaDevices;
 const hasCapture = Boolean(
-  navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === "function" && AudioCtx
+  mediaDevices && typeof mediaDevices.getUserMedia === "function" && AudioCtx
 );
 
 export const platform = {

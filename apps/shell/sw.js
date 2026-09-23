@@ -10,7 +10,7 @@
 // a version bump drops the old cache wholesale rather than leaving a half-old
 // mix of modules behind.
 
-const VERSION = "yell-shell-v2";
+const VERSION = "yell-shell-v3";
 
 const SHELL = [
   "./",
@@ -35,8 +35,10 @@ const SHELL = [
   "./core/ping.js",
   "./core/settings.js",
   "./core/state.js",
+  "./core/targets.js",
   "./core/toast.js",
   "./core/waveform.js",
+  "./platform/index.js",
   "./platform/platform.web.js",
   // The engine itself, vendored beside the landing page and shared with it.
   "../web/vendor/index.browser.js",

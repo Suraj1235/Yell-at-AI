@@ -17,8 +17,14 @@ use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow};
 
 pub const PILL_LABEL: &str = "pill";
 /// Logical pixels; `tauri.conf.json` declares the same numbers.
-pub const PILL_WIDTH: f64 = 180.0;
-pub const PILL_HEIGHT: f64 = 48.0;
+///
+/// The window is larger than the pill itself (the shell's pill is 48px tall
+/// and 180-380px wide depending on state) because the live prosody chips and
+/// the stop warning sit above it, exactly as they do in the main window. The
+/// window is transparent and click-through, so the spare area is invisible and
+/// never intercepts a click.
+pub const PILL_WIDTH: f64 = 420.0;
+pub const PILL_HEIGHT: f64 = 132.0;
 /// Logical gap between the caret/cursor and the top of the pill.
 const CURSOR_GAP: f64 = 26.0;
 /// Logical margin kept between the pill and the edge of the screen.
