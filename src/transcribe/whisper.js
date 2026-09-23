@@ -23,10 +23,16 @@
 // envelope. The runner is injectable so the adapter is fully testable offline.
 import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
+import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { resolveInstalledModel } from "./models.js";
 
 export const WHISPER_BINARY_NAMES = ["whisper", "whisper-cli", "main"];
+// whisper.cpp defaults to 4 threads whatever the machine has. Dictation is
+// latency-bound and the user is waiting, so use the logical cores, capped at 8:
+// past that the base/small models stop getting faster and start fighting the
+// rest of the desktop for cores.
+export const WHISPER_MAX_THREADS = 8;
 export const WHISPER_SOURCE = "whisper.cpp";
 export const WHISPER_NOT_FOUND_MESSAGE =
   "whisper binary not found; set SUBTEXT_WHISPER_BIN or install whisper.cpp - see docs/WHISPER.md";
@@ -67,14 +73,25 @@ export function resolveWhisperModel(env = process.env) {
   return managed ?? null;
 }
 
+// Thread count for whisper.cpp: SUBTEXT_WHISPER_THREADS when it is a positive
+// integer, else the machine's logical cores capped at WHISPER_MAX_THREADS.
+export function resolveWhisperThreads(env = process.env, cores = availableParallelism()) {
+  const override = Number(env.SUBTEXT_WHISPER_THREADS);
+  if (Number.isInteger(override) && override > 0) return override;
+  return Math.max(1, Math.min(WHISPER_MAX_THREADS, Math.floor(Number(cores) || 1)));
+}
+
 // Build the argument vector passed to the whisper binary for a given audio file.
 // Requests JSON-with-token-timings so word timings can be parsed, keeps stdout
-// quiet of progress noise, and injects `-m <model>` when a model is resolved.
-// `extraArgs` (caller-supplied) win by being appended last.
-export function buildWhisperArgs({ audio, model = null, json = true, extraArgs = [] } = {}) {
+// quiet of progress noise, injects `-m <model>` when a model is resolved and
+// `-t <threads>` when a thread count is given (unless the caller already set
+// one). `extraArgs` (caller-supplied) win by being appended last.
+export function buildWhisperArgs({ audio, model = null, json = true, threads = null, extraArgs = [] } = {}) {
   if (!audio) throw new Error("whisper adapter requires an audio file path.");
   const args = [];
   if (model) args.push("-m", model);
+  const callerSetThreads = extraArgs.some((arg) => arg === "-t" || arg === "--threads");
+  if (threads && !callerSetThreads) args.push("-t", String(threads));
   if (json) {
     // -oj writes a sidecar JSON file; --output-json-full also emits token times.
     // We additionally pass them so a JSON-capable build prints structured output
@@ -97,7 +114,7 @@ export async function transcribeWithWhisper(opts = {}) {
 
   const binary = resolveWhisperBinary(env);
   const model = resolveWhisperModel(env);
-  const runArgs = buildWhisperArgs({ audio, model, json, extraArgs: args });
+  const runArgs = buildWhisperArgs({ audio, model, json, threads: resolveWhisperThreads(env), extraArgs: args });
 
   const raw = await runner(binary, runArgs, env);
   return parseWhisperOutput(raw);
