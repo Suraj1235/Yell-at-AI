@@ -252,21 +252,30 @@ function perLabel(results) {
 function runHoldout(items) {
   const corpora = [...new Set(items.map((item) => item.testCase.source))];
   const combos = cartesian(FIT_GRID);
-  const shipped = Object.fromEntries(Object.keys(FIT_GRID).map((key) => [key, analyzer.THRESHOLDS[key]]));
   const folds = [];
   const heldOutResults = [];
 
   for (const heldOut of corpora) {
     const train = items.filter((item) => item.testCase.source !== heldOut);
     const test = items.filter((item) => item.testCase.source === heldOut);
-    let best = null;
-    for (const thresholds of combos) {
-      const { passed } = scoreAll(train, thresholds);
-      const distance = Object.keys(FIT_GRID).reduce((sum, key) => sum + Math.abs(thresholds[key] - shipped[key]) / spanOf(FIT_GRID[key]), 0);
-      if (!best || passed > best.passed || (passed === best.passed && distance < best.distance)) {
-        best = { thresholds, passed, distance };
-      }
-    }
+    // Every grid point that ties for the most training passes is "optimal".
+    // The refit picks the optimal point nearest the per-cutoff median of that
+    // set: the centre of the plateau, chosen without looking at the shipped
+    // values (a tie-break toward them would leak the in-sample choice).
+    const scoredCombos = combos.map((thresholds) => ({ thresholds, passed: scoreAll(train, thresholds).passed }));
+    const topPassed = Math.max(...scoredCombos.map((combo) => combo.passed));
+    const optimal = scoredCombos.filter((combo) => combo.passed === topPassed);
+    const centre = Object.fromEntries(Object.keys(FIT_GRID).map((key) => [key, median(optimal.map((combo) => combo.thresholds[key]))]));
+    const best = optimal
+      .map((combo) => ({
+        ...combo,
+        distance: Object.keys(FIT_GRID).reduce((sum, key) => sum + Math.abs(combo.thresholds[key] - centre[key]) / spanOf(FIT_GRID[key]), 0)
+      }))
+      .sort((a, b) => a.distance - b.distance)[0];
+    const optimalRange = Object.fromEntries(Object.keys(FIT_GRID).map((key) => {
+      const values = optimal.map((combo) => combo.thresholds[key]);
+      return [key, [Math.min(...values), Math.max(...values)]];
+    }));
     const scored = scoreAll(test, best.thresholds);
     const shippedOnTest = scoreAll(test, null);
     heldOutResults.push(...scored.results);
@@ -275,6 +284,8 @@ function runHoldout(items) {
       trainCases: train.length,
       trainPassed: best.passed,
       fitted: best.thresholds,
+      optimalCombos: optimal.length,
+      optimalRange,
       testCases: test.length,
       testPassed: scored.passed,
       shippedTestPassed: shippedOnTest.passed,
@@ -285,7 +296,7 @@ function runHoldout(items) {
   const heldOutPassed = heldOutResults.filter((result) => result.pass).length;
   return {
     grid: Object.fromEntries(Object.entries(FIT_GRID).map(([key, values]) => [key, `${values[0]}..${values.at(-1)}`])),
-    shipped,
+    shipped: Object.fromEntries(Object.keys(FIT_GRID).map((key) => [key, analyzer.THRESHOLDS[key]])),
     folds,
     confusion: confusionTable(heldOutResults),
     perLabel: perLabel(heldOutResults),
@@ -310,6 +321,12 @@ function range(start, end, step) {
   const values = [];
   for (let value = start; value <= end + 1e-9; value += step) values.push(Number(value.toFixed(3)));
   return values;
+}
+
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function spanOf(values) {
@@ -381,9 +398,11 @@ function renderMarkdown(data) {
       "",
       `Cutoffs refit on two corpora (grid ${Object.entries(data.holdout.grid).map(([key, value]) => `${key} ${value}`).join(", ")}), scored on the third.`,
       "",
-      "| Held out | Train pass | Refit cutoffs (effort high / effort low / narrow st) | Held-out pass (refit) | Held-out pass (shipped cutoffs) |",
-      "| --- | --- | --- | --- | --- |",
-      ...data.holdout.folds.map((fold) => `| ${fold.heldOut} | ${fold.trainPassed}/${fold.trainCases} | ${fold.fitted.vocalEffortHighAlphaDbNoBaseline} / ${fold.fitted.vocalEffortLowAlphaDbNoBaseline} / ${fold.fitted.pitchRangeNarrowSemitonesNoBaseline} | ${fold.testPassed}/${fold.testCases} | ${fold.shippedTestPassed}/${fold.testCases} |`),
+      `Shipped cutoffs: effort high ${data.holdout.shipped.vocalEffortHighAlphaDbNoBaseline} dB, effort low ${data.holdout.shipped.vocalEffortLowAlphaDbNoBaseline} dB, narrow ${data.holdout.shipped.pitchRangeNarrowSemitonesNoBaseline} st. The refit picks the centre of the plateau of grid points tied for the best training score; the ranges show how wide that plateau is.`,
+      "",
+      "| Held out | Train pass | Refit (effort high / effort low / narrow st) | Optimal range on train | Held-out pass (refit) | Held-out pass (shipped cutoffs) |",
+      "| --- | --- | --- | --- | --- | --- |",
+      ...data.holdout.folds.map((fold) => `| ${fold.heldOut} | ${fold.trainPassed}/${fold.trainCases} | ${fold.fitted.vocalEffortHighAlphaDbNoBaseline} / ${fold.fitted.vocalEffortLowAlphaDbNoBaseline} / ${fold.fitted.pitchRangeNarrowSemitonesNoBaseline} | ${Object.values(fold.optimalRange).map(([lo, hi]) => (lo === hi ? `${lo}` : `${lo}..${hi}`)).join(" / ")} (${fold.optimalCombos} pts) | ${fold.testPassed}/${fold.testCases} | ${fold.shippedTestPassed}/${fold.testCases} |`),
       "",
       `Held-out total: ${data.holdout.summary.heldOutPassed}/${data.holdout.summary.cases} (${data.holdout.summary.passRate}).`,
       "",

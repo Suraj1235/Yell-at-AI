@@ -41,6 +41,39 @@ Result: 11/14 (0.786).
 | PASS | ted_public_speaking_talk | stage public-speaking talk | neutral | normal | none |
 | PASS | google_io_developer_keynote | developer keynote | emphatic | preserve_emphasis | emphasis |
 
+## After: gain-invariant uncalibrated read, contract-only criteria
+
+Result: 11/14 (0.786), the same three misses as before the engine change.
+
+| Result | Case | Genre | Coloring | Priority | Flags |
+| --- | --- | --- | --- | --- | --- |
+| PASS | mit_ocw_audience_question | classroom audience question | neutral | normal | none |
+| PASS | mit_ocw_professor_answer | classroom professor answer | emphatic | preserve_emphasis | emphasis |
+| PASS | mit_ocw_debrief_discussion | classroom discussion | hesitant | careful | hesitation |
+| MISS | nasa_artemis_quarantine_qa | remote public Q&A | mixed | resolve_mismatch | emphasis, lexical_prosodic_mismatch |
+| MISS | nasa_artemis_news_conference | press conference answer | mixed | resolve_mismatch | emphasis, lexical_prosodic_mismatch |
+| PASS | white_house_press_briefing | press briefing | emphatic | preserve_emphasis | emphasis |
+| PASS | arvada_city_council_meeting | public meeting room audio | emphatic | preserve_emphasis | emphasis |
+| PASS | usgs_pubtalk_lecture | public science lecture | emphatic | preserve_emphasis | emphasis |
+| PASS | pycon_warnings_talk | conference technical talk | emphatic | preserve_emphasis | emphasis |
+| PASS | fosdem_deepspeech_talk | conference technical talk | emphatic | preserve_emphasis | emphasis |
+| PASS | gitbutler_fosdem_git_talk | conference technical talk | emphatic | preserve_emphasis | emphasis |
+| MISS | stanford_cs224n_lecture | university lecture | uncertain | clarify | uncertainty, emphasis |
+| PASS | ted_public_speaking_talk | stage public-speaking talk | neutral | normal | none |
+| PASS | google_io_developer_keynote | developer keynote | emphatic | preserve_emphasis | emphasis |
+
+- No calm clip gained a yelling, urgency or tension flag. This set is what the
+  uncalibrated vocal-effort cut (-6 dB alpha ratio) was checked against: at
+  -9 dB three of these clips would be flagged, at -12 dB six.
+- USGS and the NASA Q&A gained an emphasis flag (harmless: preserve stressed
+  words).
+- The two NASA misses are the lexical "softening language with elevated
+  delivery" rule (a softener word plus a fast rate), and the Stanford miss is
+  rising terminal pitch plus an uncertainty-context word. Both are text-side rules this change
+  did not touch.
+- The MIT debrief keeps its hesitation read. The new relative speech gate
+  keeps its pauses visible (noise sits about 21 dB under the speech there).
+
 ## Fixes Driven By Raw Data
 
 - Caption slicing now keys caches by segment time and avoids pulling neighboring speaker text into the transcript.
