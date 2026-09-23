@@ -50,11 +50,11 @@ The manifest currently includes 14 candidate clips from:
 
 ## What Counts As A Pass
 
-This benchmark does not ask Subtext to infer emotion. It asks whether natural speech creates appropriate assistant handoff context:
+This benchmark does not ask Subtext to infer emotion. It asks whether natural speech creates appropriate assistant handoff context, judged only on what the contract tells the assistant: `affect.emotional_coloring`, `flags`, and `assistant_guidance.priority`. `delivery_clear` means no steering flag and a guidance priority of `normal` or `preserve_emphasis`. The manifest may not name transcript- or harness-derived signals; the script refuses it if it does.
 
-- audience questions should surface question evidence or uncertainty-style context
-- neutral lectures, press briefings, and public comments should not false-flag yelling, urgency, or tension
+- audience questions may be passed through normally or read as uncertain, but never as urgent or yelling
+- neutral lectures, press briefings, and public comments should be clear delivery: no yelling, urgency, tension, or a text/tone "mismatch" steer
 - natural fillers and long pauses should surface hesitation when the clip genuinely contains them
-- energetic technical talks may surface emphasis, but should not become yelling or urgency by default
+- energetic technical talks may surface emphasis or arousal, but should not become yelling
 
 Misses are valuable. They reveal raw-data failures in transcript slicing, caption quality, softener semantics, question handling, pitch extraction, and false-positive flag rules.

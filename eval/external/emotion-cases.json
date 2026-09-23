@@ -7,7 +7,8 @@
     "emotion": "angry",
     "transcript": "Don't forget a jacket.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_ANG_XX.wav",
-    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "expectAny": ["reads_aroused"],
+    "forbid": ["reads_subdued"],
     "notes": "CREMA-D filename label ANG."
   },
   {
@@ -18,7 +19,8 @@
     "emotion": "happy",
     "transcript": "Don't forget a jacket.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_HAP_XX.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "expectAny": ["reads_aroused", "reads_neutral"],
+    "forbid": ["reads_subdued", "reads_uncertain"],
     "notes": "CREMA-D filename label HAP."
   },
   {
@@ -29,7 +31,8 @@
     "emotion": "sad",
     "transcript": "Don't forget a jacket.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_SAD_XX.wav",
-    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "expectAny": ["reads_subdued", "coloring_hesitant"],
+    "forbid": ["reads_aroused"],
     "notes": "CREMA-D filename label SAD."
   },
   {
@@ -40,9 +43,9 @@
     "emotion": "neutral",
     "transcript": "Don't forget a jacket.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1001_DFA_NEU_XX.wav",
-    "expectAll": ["delivery_clear"],
-    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
-    "notes": "CREMA-D filename label NEU. Neutral expects no strong assistant-steering flags, not flat prosody."
+    "expectAny": ["reads_neutral"],
+    "forbid": ["steering_flag"],
+    "notes": "CREMA-D filename label NEU."
   },
   {
     "id": "crema_angry_ieo_1002",
@@ -52,7 +55,8 @@
     "emotion": "angry",
     "transcript": "It's eleven o'clock.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_ANG_HI.wav",
-    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "expectAny": ["reads_aroused"],
+    "forbid": ["reads_subdued"],
     "notes": "Fresh CREMA-D speaker 1002, sentence IEO, high-intensity anger."
   },
   {
@@ -63,7 +67,8 @@
     "emotion": "happy",
     "transcript": "It's eleven o'clock.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_HAP_HI.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "expectAny": ["reads_aroused", "reads_neutral"],
+    "forbid": ["reads_subdued", "reads_uncertain"],
     "notes": "Fresh CREMA-D speaker 1002, sentence IEO, high-intensity happiness."
   },
   {
@@ -74,7 +79,8 @@
     "emotion": "sad",
     "transcript": "It's eleven o'clock.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_SAD_LO.wav",
-    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "expectAny": ["reads_subdued", "coloring_hesitant"],
+    "forbid": ["reads_aroused"],
     "notes": "Fresh CREMA-D speaker 1002, sentence IEO, low-intensity sadness."
   },
   {
@@ -85,7 +91,8 @@
     "emotion": "fearful",
     "transcript": "It's eleven o'clock.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_FEA_HI.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "terminal_rising", "flag_uncertainty", "voice_tense"],
+    "expectAny": ["reads_aroused", "reads_uncertain"],
+    "forbid": ["reads_subdued"],
     "notes": "Fresh CREMA-D speaker 1002, sentence IEO, high-intensity fear."
   },
   {
@@ -96,8 +103,8 @@
     "emotion": "neutral",
     "transcript": "It's eleven o'clock.",
     "url": "https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/master/AudioWAV/1002_IEO_NEU_XX.wav",
-    "expectAll": ["delivery_clear"],
-    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "expectAny": ["reads_neutral"],
+    "forbid": ["steering_flag"],
     "notes": "Fresh CREMA-D speaker 1002, neutral sentence IEO."
   },
   {
@@ -108,7 +115,8 @@
     "emotion": "happy",
     "transcript": "Kids are talking by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-03-02-01-01-01.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "expectAny": ["reads_aroused", "reads_neutral"],
+    "forbid": ["reads_subdued", "reads_uncertain"],
     "notes": "RAVDESS code 03 = happy, intensity 02 = strong."
   },
   {
@@ -119,7 +127,8 @@
     "emotion": "sad",
     "transcript": "Kids are talking by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-04-02-01-01-01.wav",
-    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "expectAny": ["reads_subdued", "coloring_hesitant"],
+    "forbid": ["reads_aroused"],
     "notes": "RAVDESS code 04 = sad, intensity 02 = strong."
   },
   {
@@ -130,7 +139,8 @@
     "emotion": "angry",
     "transcript": "Kids are talking by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-05-02-01-01-01.wav",
-    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "expectAny": ["reads_aroused"],
+    "forbid": ["reads_subdued"],
     "notes": "RAVDESS code 05 = angry, intensity 02 = strong."
   },
   {
@@ -141,7 +151,8 @@
     "emotion": "fearful",
     "transcript": "Kids are talking by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_01/03-01-06-02-01-01-01.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "terminal_rising", "flag_uncertainty", "voice_tense"],
+    "expectAny": ["reads_aroused", "reads_uncertain"],
+    "forbid": ["reads_subdued"],
     "notes": "RAVDESS code 06 = fearful, intensity 02 = strong."
   },
   {
@@ -152,8 +163,8 @@
     "emotion": "neutral",
     "transcript": "Dogs are sitting by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-01-01-02-01-02.wav",
-    "expectAll": ["delivery_clear"],
-    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
+    "expectAny": ["reads_neutral"],
+    "forbid": ["steering_flag"],
     "notes": "Fresh RAVDESS Actor_02 neutral, statement 02."
   },
   {
@@ -164,7 +175,8 @@
     "emotion": "happy",
     "transcript": "Dogs are sitting by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-03-02-02-01-02.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "expectAny": ["reads_aroused", "reads_neutral"],
+    "forbid": ["reads_subdued", "reads_uncertain"],
     "notes": "Fresh RAVDESS Actor_02 happy, strong intensity, statement 02."
   },
   {
@@ -175,7 +187,8 @@
     "emotion": "sad",
     "transcript": "Dogs are sitting by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-04-02-02-01-02.wav",
-    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "expectAny": ["reads_subdued", "coloring_hesitant"],
+    "forbid": ["reads_aroused"],
     "notes": "Fresh RAVDESS Actor_02 sad, strong intensity, statement 02."
   },
   {
@@ -186,7 +199,8 @@
     "emotion": "angry",
     "transcript": "Dogs are sitting by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-05-02-02-01-02.wav",
-    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "expectAny": ["reads_aroused"],
+    "forbid": ["reads_subdued"],
     "notes": "Fresh RAVDESS Actor_02 angry, strong intensity, statement 02."
   },
   {
@@ -197,7 +211,8 @@
     "emotion": "fearful",
     "transcript": "Dogs are sitting by the door.",
     "url": "https://huggingface.co/datasets/birgermoell/ravdess/resolve/main/Actor_02/03-01-06-02-02-01-02.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "terminal_rising", "flag_uncertainty", "voice_tense"],
+    "expectAny": ["reads_aroused", "reads_uncertain"],
+    "forbid": ["reads_subdued"],
     "notes": "Fresh RAVDESS Actor_02 fearful, strong intensity, statement 02."
   },
   {
@@ -209,7 +224,8 @@
     "transcript": "Das will sie am Mittwoch abgeben.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/03a02Wc.wav",
-    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
+    "expectAny": ["reads_aroused"],
+    "forbid": ["reads_subdued"],
     "notes": "EmoDB code W = Wut/anger."
   },
   {
@@ -221,7 +237,8 @@
     "transcript": "Das will sie am Mittwoch abgeben.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/03a02Fc.wav",
-    "expectAny": ["aroused", "energy_high", "pitch_wide", "rate_fast"],
+    "expectAny": ["reads_aroused", "reads_neutral"],
+    "forbid": ["reads_subdued", "reads_uncertain"],
     "notes": "EmoDB code F = Freude/happiness."
   },
   {
@@ -233,7 +250,8 @@
     "transcript": "Das will sie am Mittwoch abgeben.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/15a02Ta.wav",
-    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
+    "expectAny": ["reads_subdued", "coloring_hesitant"],
+    "forbid": ["reads_aroused"],
     "notes": "EmoDB code T = Trauer/sadness. Kept as an utterance-only global-threshold sentinel."
   },
   {
@@ -245,9 +263,9 @@
     "transcript": "Das will sie am Mittwoch abgeben.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/03a02Nc.wav",
-    "expectAll": ["delivery_clear"],
-    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
-    "notes": "EmoDB code N = neutral. Neutral expects no strong assistant-steering flags, not flat prosody."
+    "expectAny": ["reads_neutral"],
+    "forbid": ["steering_flag"],
+    "notes": "EmoDB code N = neutral."
   },
   {
     "id": "emodb_sad_b02_sp15_personal",
@@ -258,6 +276,9 @@
     "transcript": "Sie haben es gerade hochgetragen und jetzt gehen sie wieder runter.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/15b02Tc.wav",
+    "expectAny": ["reads_subdued", "coloring_hesitant"],
+    "forbid": ["reads_aroused"],
+    "notes": "Fresh same-speaker sadness case using a three-sample speaker-15 neutral baseline.",
     "baseline": [
       {
         "id": "emodb_sp15_neutral_a02",
@@ -280,9 +301,7 @@
         "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
         "archiveEntry": "emodb/wav/15b03Nb.wav"
       }
-    ],
-    "expectAny": ["subdued", "energy_low", "rate_slow", "pause_high", "pitch_narrow"],
-    "notes": "Fresh same-speaker sadness case using a three-sample speaker-15 neutral baseline."
+    ]
   },
   {
     "id": "emodb_angry_a02_sp15_personal",
@@ -293,6 +312,9 @@
     "transcript": "Das will sie am Mittwoch abgeben.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/15a02Wb.wav",
+    "expectAny": ["reads_aroused"],
+    "forbid": ["reads_subdued"],
+    "notes": "Fresh same-speaker anger case using the same speaker-15 neutral baseline.",
     "baseline": [
       {
         "id": "emodb_sp15_neutral_a02",
@@ -315,9 +337,7 @@
         "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
         "archiveEntry": "emodb/wav/15b03Nb.wav"
       }
-    ],
-    "expectAny": ["aroused", "energy_high", "rate_fast", "flag_urgency", "voice_tense"],
-    "notes": "Fresh same-speaker anger case using the same speaker-15 neutral baseline."
+    ]
   },
   {
     "id": "emodb_neutral_a02_sp15_personal",
@@ -328,6 +348,9 @@
     "transcript": "Das will sie am Mittwoch abgeben.",
     "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
     "archiveEntry": "emodb/wav/15a02Na.wav",
+    "expectAny": ["reads_neutral"],
+    "forbid": ["steering_flag"],
+    "notes": "Fresh same-speaker neutral case using held-out speaker-15 neutral baseline samples.",
     "baseline": [
       {
         "id": "emodb_sp15_neutral_b02",
@@ -350,9 +373,6 @@
         "archiveUrl": "https://zenodo.org/records/7447302/files/emodb.zip?download=1",
         "archiveEntry": "emodb/wav/15b10Nc.wav"
       }
-    ],
-    "expectAll": ["delivery_clear"],
-    "forbid": ["flag_urgency", "flag_tension", "flag_hesitation", "flag_yelling"],
-    "notes": "Fresh same-speaker neutral case using held-out speaker-15 neutral baseline samples."
+    ]
   }
 ]

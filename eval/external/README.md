@@ -33,10 +33,24 @@ The manifest currently includes 25 clips from:
 
 ## What Counts As A Pass
 
-This benchmark does not ask Subtext to classify emotion. It asks whether known emotion labels have compatible prosodic evidence:
+A clip is scored only on what the assistant receives: the contract's
+`affect.emotional_coloring` and `flags`. The harness never adds signals of its
+own. The manifest may only name contract signals (`coloring_*`, `flag_*`, and
+the composites `reads_aroused`, `reads_subdued`, `reads_uncertain`,
+`reads_neutral`, `steering_flag`, all defined from coloring and flags), and
+every clip with the same label must use the same rule. The script refuses a
+manifest that breaks either constraint.
 
-- angry/fearful/happy often expect arousal evidence such as high energy, fast rate, wide pitch range, urgency, or tension
-- sad often expects subdued evidence such as low energy, slow rate, high pauses, or narrow pitch range
-- neutral expects clear delivery and no strong urgency/tension/hesitation/yelling cue
+- angry: must read aroused (tense/urgent/high_intensity coloring, or a tension/urgency/yelling flag); must not read subdued
+- fearful: must read aroused or uncertain/hesitant; must not read subdued
+- happy: must read aroused or neutral; must not read subdued or uncertain (the contract has no positive-arousal word, so "tense" is the closest it can say)
+- sad: must read subdued or hesitant; must not read aroused
+- neutral: must read neutral/emphatic; no steering flag
 
-Misses are valuable. They reveal where M0 thresholds, alignment, pitch extraction, or utterance-local calibration do not generalize.
+The report includes a per-label confusion table of what the coloring told the
+assistant, which is the number to read; the pass rate alone hides a detector
+that says the same thing for every clip.
+
+`--holdout` refits the uncalibrated vocal-effort and pitch-range cutoffs on two
+corpora, scores the third with the refit values, and rotates, so the in-sample
+number can be compared with a held-out one.

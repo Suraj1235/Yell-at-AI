@@ -8,9 +8,9 @@
     "genre": "classroom audience question",
     "startSec": 20.6,
     "endSec": 28.8,
-    "expectAny": ["question_text", "terminal_rising", "flag_uncertainty", "flag_confusion"],
+    "expectAny": ["delivery_clear", "reads_uncertain"],
     "forbid": ["flag_yelling", "flag_urgency"],
-    "notes": "Raw audience mic question with uncertainty/question wording."
+    "notes": "Raw audience mic question. The assistant may be told to use it normally or to clarify; it must not be told the asker is urgent or yelling. (Previously passed on a transcript-only question_text signal.)"
   },
   {
     "id": "mit_ocw_professor_answer",
@@ -34,7 +34,7 @@
     "genre": "classroom discussion",
     "startSec": 75,
     "endSec": 105,
-    "expectAny": ["flag_hesitation", "pause_high"],
+    "expectAny": ["flag_hesitation", "coloring_hesitant"],
     "forbid": ["flag_yelling", "flag_urgency", "flag_tension"],
     "notes": "Natural classroom explanation with repeated fillers and long pauses; hesitation is a useful cue here."
   },
@@ -177,7 +177,7 @@
     "genre": "developer keynote",
     "startSec": 120,
     "endSec": 150,
-    "expectAny": ["delivery_clear", "flag_emphasis", "aroused"],
+    "expectAny": ["delivery_clear", "flag_emphasis", "reads_aroused"],
     "forbid": ["flag_yelling"],
     "notes": "Product keynote/demonstration speech with higher energy; arousal or emphasis is acceptable, yelling is not."
   }

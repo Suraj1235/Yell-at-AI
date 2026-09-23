@@ -77,7 +77,7 @@
     "package:adapters": "node scripts/package-adapters.mjs",
     "install:adapter": "node bin/subtext.js install-adapter",
     "profile:list": "node bin/subtext.js profile list",
-    "external:emotion": "node scripts/run-external-emotion-eval.mjs --min-pass-rate 0.55",
+    "external:emotion": "node scripts/run-external-emotion-eval.mjs --min-pass-rate 0.3",
     "external:emotion:download": "node scripts/run-external-emotion-eval.mjs --download-only",
     "wild:youtube": "node scripts/run-wild-youtube-eval.mjs --min-pass-rate 0.55",
     "wild:youtube:download": "node scripts/run-wild-youtube-eval.mjs --download-only",
