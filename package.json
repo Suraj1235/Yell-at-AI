@@ -14,13 +14,13 @@
       "url": "https://github.com/manishgit61332"
     }
   ],
-  "homepage": "https://github.com/manishgit61332/Yell-at-AI#readme",
+  "homepage": "https://github.com/Suraj1235/Yell-at-AI#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/manishgit61332/Yell-at-AI.git"
+    "url": "git+https://github.com/Suraj1235/Yell-at-AI.git"
   },
   "bugs": {
-    "url": "https://github.com/manishgit61332/Yell-at-AI/issues"
+    "url": "https://github.com/Suraj1235/Yell-at-AI/issues"
   },
   "bin": {
     "subtext": "./bin/subtext.js",
@@ -61,6 +61,7 @@
     "build": "node scripts/build-check.mjs",
     "fixtures": "node scripts/generate-fixtures.mjs",
     "prepack": "npm run fixtures",
+    "prepare": "npm run fixtures",
     "prepublishOnly": "npm run build && npm test",
     "verify:package": "node scripts/verify-package.mjs",
     "test": "npm run fixtures && node --test",

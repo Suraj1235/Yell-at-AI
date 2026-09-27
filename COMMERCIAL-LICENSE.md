@@ -17,5 +17,5 @@ This file is a placeholder for business terms. Do not treat it as a signed comme
 ## Interim Contact
 
 Until formal terms exist, open a GitHub issue labeled `commercial-license` at
-https://github.com/manishgit61332/Yell-at-AI/issues, or reach the maintainers directly via their GitHub
+https://github.com/Suraj1235/Yell-at-AI/issues, or reach the maintainers directly via their GitHub
 profiles: [@Suraj1235](https://github.com/Suraj1235) and [@manishgit61332](https://github.com/manishgit61332).

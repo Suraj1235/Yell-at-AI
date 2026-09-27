@@ -17,7 +17,7 @@
   <a href="#try-it-in-30-seconds"><img alt="Try it" src="https://img.shields.io/badge/try_it-30_seconds-2dd4bf?style=for-the-badge"></a>
   <a href="#install"><img alt="Install" src="https://img.shields.io/badge/install-npx_yell--at--ai-8b5cf6?style=for-the-badge"></a>
   <a href="docs/CONTRACT.md"><img alt="Schema" src="https://img.shields.io/badge/schema-vocalcontext%2Fv1-60a5fa?style=for-the-badge"></a>
-  <a href="https://github.com/manishgit61332/Yell-at-AI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/manishgit61332/Yell-at-AI/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Suraj1235/Yell-at-AI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Suraj1235/Yell-at-AI/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-noncommercial_source-f59e0b?style=for-the-badge"></a>
 </p>
 
@@ -124,8 +124,12 @@ Speech API (in Chrome and Edge that sends audio to Google); the prosody layer ne
 **From the terminal** — run it on the bundled sample with no setup. Works from any directory:
 
 ```sh
-npx yell-at-ai demo
+npm install -g github:Suraj1235/Yell-at-AI   # installs the `yell-at-ai` and `subtext` commands
+yell-at-ai demo
 ```
+
+> The package is not on the npm registry yet, so install it straight from GitHub as above. Once it is
+> published, `npx yell-at-ai demo` will work with no install step.
 
 You get the transcript with a grounded evidence block prepended:
 
@@ -153,27 +157,62 @@ enriched prompt — but unlike `demo`, it needs three things on your machine fir
 `doctor` reports exactly these three and tells you what is missing, so run it first:
 
 ```sh
-npx yell-at-ai doctor                         # what's installed, and which engines send audio where
-npx yell-at-ai model download base.en --yes   # one time, ~142 MB, asks first
-npx yell-at-ai dictate --target clipboard     # records 5s (override with --duration)
+yell-at-ai doctor                         # what's installed, and which engines send audio where
+yell-at-ai model download base.en --yes   # one time, ~142 MB, asks first
+yell-at-ai dictate --target clipboard     # records 5s (override with --duration)
 ```
 
 Bundling the whisper binary so this works with no external setup is a follow-up, not something this
 release does.
 
-## Install
+## Use the app
 
-Zero runtime dependencies. Run it on demand with `npx`, or install the CLI globally — both `yell-at-ai`
-and `subtext` resolve to the same tool:
+The dictation app is one interface — [`apps/shell`](apps/shell) — that runs in three places.
+
+**In a browser, or installed on your phone.** From a clone:
 
 ```sh
-# run once, no install
-npx yell-at-ai doctor
+npm run shell        # → http://127.0.0.1:8123/apps/shell/index.html
+```
 
-# or install globally
-npm install -g yell-at-ai
+Hold `Ctrl+Alt+Y` (or the on-screen pill) to talk, release to finish; double-tap for hands-free, `Esc`
+cancels. The pill reads your delivery *while* you speak, and each turn lands as an evidence card with
+the stressed word highlighted. It installs as a PWA — use your browser's *Install* / *Add to Home
+Screen* to put it on Android or iPhone. In a browser the words are copied to the clipboard; no web page
+can type into another app. The badge above the recorder always names the speech engine in use and who,
+if anyone, receives your audio.
+
+**As a desktop app (Windows, macOS).** The same interface inside a Tauri shell adds a global hotkey that
+works in any app, a floating overlay pill, a tray icon, and automatic insertion into whatever app has
+focus — the full `<vocal-context>` block for AI apps (Claude, Cursor, VS Code, ChatGPT, terminals),
+plain text everywhere else. It transcribes locally with whisper.cpp.
+
+```sh
+cd apps/desktop
+npm install
+npm run tauri:dev
+```
+
+This needs the Rust toolchain and, on Windows, the Visual Studio C++ Build Tools. There are no signed
+installers yet. See [apps/desktop/README.md](apps/desktop/README.md) and
+[apps/desktop/CONTRACT.md](apps/desktop/CONTRACT.md).
+
+## Install
+
+Zero runtime dependencies. Both `yell-at-ai` and `subtext` resolve to the same tool:
+
+```sh
+# today: install from GitHub
+npm install -g github:Suraj1235/Yell-at-AI
+
+# once published to npm
+npm install -g yell-at-ai        # or run on demand: npx yell-at-ai doctor
+
 yell-at-ai analyze --audio turn.wav --text "..." --format prompt
 ```
+
+Or work from a clone: `git clone https://github.com/Suraj1235/Yell-at-AI && cd Yell-at-AI && npm install`,
+then `node bin/subtext.js <command>`.
 
 It needs only Node.js >= 20: no native compile step, no bundled model weights, no GPU, no API key, and
 no default network egress. New here? Start with the [Quickstart](docs/QUICKSTART.md) for web, CLI, and
@@ -192,11 +231,12 @@ An honest cut of what is shipped versus what is a working foundation today.
 | Surface | State | Notes |
 | --- | --- | --- |
 | Prosody engine (`vocalcontext/v1`) | 🟢 shipped | model-free DSP, alignment, affect, flags; offline; cross-platform green on Windows, macOS, Linux |
-| CLI / dev tool (`npx yell-at-ai`) | 🟢 shipped | `demo`, `analyze`, `capture`, `session`, `dictate`, `model`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
+| CLI / dev tool (`yell-at-ai`) | 🟢 shipped | `demo`, `analyze`, `capture`, `session`, `dictate`, `model`, `ptt`, `handoff`, `calibrate`, `serve`, `mcp`, `doctor` |
 | Web demo | 🟢 shipped | [yell-at-ai.vercel.app](https://yell-at-ai.vercel.app) — mic → live dictation → client-side `vocalcontext/v1` → enriched prompt; static app in `apps/web/` |
 | Editor adapters (Claude Code, Codex, VS Code) | 🟡 templates — manual install | `install-adapter` generates the bundle + host config; you wire it into the host yourself; no marketplace packages yet |
 | HTTP + MCP-style JSON-RPC servers | 🟢 shipped | localhost-bound; `analyze_file` / `analyze_audio` tools |
-| Native Windows push-to-talk app | 🟡 working foundation | Tauri/Rust dev build with global hotkey + node sidecar; signed `.msi` distribution is a documented follow-up |
+| Dictation app — browser / PWA (`apps/shell`) | 🟢 shipped | hold-to-talk pill, live prosody while you speak, evidence card, searchable history, onboarding with calibration; installs on Android and iPhone. Browser insertion is clipboard-only |
+| Desktop app — Windows / macOS (`apps/desktop`) | 🟡 dev build | the same interface in Tauri: global hotkey, overlay pill, tray, local whisper, per-app insertion. Runs from source; no signed installers yet; Node must be on `PATH` |
 | Offline whisper STT | 🟢 shipped | `subtext dictate --engine whisper`; `subtext model download base.en --yes` installs a checksum-verified model. No weights bundled, no egress. You supply the whisper.cpp binary and a recorder — `doctor` reports both; bundling them is a follow-up. |
 | Cloud STT (opt-in) | 🟢 shipped | `--engine cloud --provider groq\|deepgram` with your own key. Faster, returns real word timings, and clearly labelled as sending audio to the provider. |
 
