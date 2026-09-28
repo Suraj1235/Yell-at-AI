@@ -50,7 +50,7 @@ through are:
 | OS | Easiest path |
 | --- | --- |
 | macOS | `brew install whisper-cpp` (provides `whisper-cli` on PATH) |
-| Windows | Download a prebuilt zip from the [releases page](https://github.com/ggerganov/whisper.cpp/releases), unzip, note the path to `whisper-cli.exe` (older builds: `main.exe`) |
+| Windows | Download `whisper-bin-x64.zip` from a release that ships Windows binaries — not every release does (v1.9.4, the latest at the time of writing, has none). [v1.9.2's CPU build](https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-x64.zip) is known to work. Unzip, then point `SUBTEXT_WHISPER_BIN` at `Release\whisper-cli.exe` (older builds: `main.exe`) |
 | Linux | Distro/AUR package where available, otherwise build from source |
 
 Building from source on any platform:
