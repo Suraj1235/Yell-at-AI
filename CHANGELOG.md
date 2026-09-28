@@ -4,7 +4,10 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.0] - 2026-09-29
+
+First public release: Subtext, the meaning-and-emotion layer for dictation, with the dictation app
+(browser / PWA and a desktop dev build).
 
 ### Added
 
@@ -55,11 +58,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   those extensions. Binary resolution is now restricted to genuinely executable extensions
   (`.COM`, `.EXE`, `.BAT`, `.CMD`).
 
-## [0.1.0] - Unreleased
+### Foundations
 
-Initial release: Subtext as an offline, model-free meaning-and-emotion layer for dictation.
-
-### Added
 
 - Core prosody analyzer producing the `vocalcontext/v1` contract: emphasis, delivery, affect, guidance,
   and flags, model-free and offline.

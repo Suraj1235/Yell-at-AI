@@ -45,10 +45,15 @@ jobs:
             echo "Tag $TAG_NAME does not match package.json version ($PKG_VERSION)" >&2
             exit 1
           fi
-      # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN. Must be configured for this repo+workflow on npmjs.com before the first real run.
+      # npm Trusted Publishing (OIDC) cannot be configured until the package
+      # exists on the registry, so the first publish is manual. Until then a
+      # real publish is opt-in: set the repository variable NPM_PUBLISH to
+      # "true" once Trusted Publishing is configured on npmjs.com. Without it a
+      # tag still builds, tests and dry-runs the publish, so cutting a GitHub
+      # release never fails on npm.
       - name: Publish (dry run)
-        if: github.event_name == 'workflow_dispatch' && inputs['dry-run']
+        if: (github.event_name == 'workflow_dispatch' && inputs['dry-run']) || (github.event_name == 'push' && vars.NPM_PUBLISH != 'true')
         run: npm publish --provenance --access public --dry-run
       - name: Publish
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs['dry-run'])
+        if: vars.NPM_PUBLISH == 'true' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs['dry-run']))
         run: npm publish --provenance --access public
