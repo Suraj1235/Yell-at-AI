@@ -24,6 +24,8 @@
 <p align="center">
   <a href="docs/QUICKSTART.md">Quickstart</a>
   ·
+  <a href="docs/HANDOFF.md">Status &amp; handoff</a>
+  ·
   <a href="docs/ARCHITECTURE.md">Architecture</a>
   ·
   <a href="docs/CONTRACT.md">Contract</a>

@@ -1,7 +1,7 @@
 # Design: Yell-at-AI → Product Hunt Launch
 
 Date: 2026-09-21
-Status: approved design, pending implementation
+Status: implemented through Phase 3 (web/PWA) and a Phase 2 desktop dev build — released as v0.1.0 on 2026-09-29. Current state and pending work: [docs/HANDOFF.md](../docs/HANDOFF.md).
 Supersedes the scope of `plans/2026-06-30-launch-ready-design.md` — that plan delivered the reference
 engine; this one delivers the product.
 
