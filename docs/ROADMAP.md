@@ -1,5 +1,7 @@
 # Roadmap
 
+> **Current state (v0.1.0, 2026-09-29):** see [HANDOFF.md](HANDOFF.md) for what shipped, what is verified, and every pending item as a tracked GitHub issue. The milestones below are the original plan and are kept for history.
+
 ## M0, Current Repo
 
 - Pure Node.js reference core.
